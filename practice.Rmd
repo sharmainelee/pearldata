@@ -50,32 +50,86 @@ ggplot(data, aes(x = Pearl_Grading_Data_Size_mm)) +
 
 
 # Boxplots for pearl size by factors
-p1 <- ggplot(data, aes(x = Location, y = PearlSize)) +
+#p1 <- ggplot(data, aes(x = Location, y = PearlSize)) +
+  #geom_boxplot() +
+  #labs(title = "Pearl Size by Location")
+
+#p2 <- ggplot(data, aes(x = SaiboArea, y = PearlSize)) +
+  #geom_boxplot() +
+  #labs(title = "Pearl Size by Saibo Area")
+
+#p3 <- ggplot(data, aes(x = HealthStatus, y = PearlSize)) +
+  #geom_boxplot() +
+  #labs(title = "Pearl Size by Health Status")
+
+#ggarrange(p1, p2, p3, ncol = 3)
+
+
+
+
+p1 <- ggplot(data, aes(x = Shell_Metrics_Location
+, y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
-  labs(title = "Pearl Size by Location")
+  labs(title = "Pearl Size by Location", x = "Location", y = "Pearl Size (mm)")
 
-p2 <- ggplot(data, aes(x = SaiboArea, y = PearlSize)) +
+p1
+
+####p2 with NA
+p2 <- ggplot(data, aes(x = First_Op_Data_LocationIncoming
+, y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
-  labs(title = "Pearl Size by Saibo Area")
+  labs(title = "Pearl Size by First Operation Data Location Incoming", x = 
+         "First Operation Data Location", y = "Pearl Size (mm)")
+p2
 
-p3 <- ggplot(data, aes(x = HealthStatus, y = PearlSize)) +
+####p2 remove NA
+
+library(ggplot2)
+library(dplyr)
+
+# Remove NAs from the specific columns used in the plot
+p2 <- ggplot(data %>% drop_na(First_Op_Data_LocationIncoming, Pearl_Grading_Data_Size_mm), 
+             aes(x = First_Op_Data_LocationIncoming, y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
-  labs(title = "Pearl Size by Health Status")
+  labs(title = "Pearl Size by First Operation Data Location Incoming", 
+       x = "First Operation Data Location", 
+       y = "Pearl Size (mm)")
 
-ggarrange(p1, p2, p3, ncol = 3)
+# Print the plot
+print(p2)
 
 
 
-
-p1 <- ggplot(data, aes(x = Location, y = PearlSize)) +
+####pearl size by saibo area with NA
+p3 <- ggplot(data, aes(x = First_Op_Data_Saibo_Area, y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
-  labs(title = "Pearl Size by Location")
+  labs(title = "Pearl Size by Saibo Area", x = 
+    "First Operation Data Saibo Area", y = "Pearl Size (mm)")
 
-p2 <- ggplot(data, aes(x = SaiboArea, y = PearlSize)) +
+p3
+
+
+
+####p3 remove NA
+
+library(ggplot2)
+library(dplyr)
+
+# Remove NAs for the specific columns used in the plot
+p3 <- ggplot(data %>% drop_na(First_Op_Data_Saibo_Area, Pearl_Grading_Data_Size_mm), 
+             aes(x = First_Op_Data_Saibo_Area, y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
-  labs(title = "Pearl Size by Saibo Area")
+  labs(title = "Pearl Size by Saibo Area", 
+       x = "First Operation Data Saibo Area", 
+       y = "Pearl Size (mm)")
 
-p3 <- ggplot(data, aes(x = HealthStatus, y = PearlSize)) +
+# Print the plot
+print(p3)
+
+
+
+
+p4 <- ggplot(data, aes(x = HealthStatus, y = PearlSize)) +
   geom_boxplot() +
   labs(title = "Pearl Size by Health Status")
 
