@@ -75,12 +75,11 @@ p1 <- ggplot(data, aes(x = Shell_Metrics_Location
 p1
 
 ####p2 with NA
-p2 <- ggplot(data, aes(x = First_Op_Data_LocationIncoming
+#p2 <- ggplot(data, aes(x = First_Op_Data_LocationIncoming
 , y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
   labs(title = "Pearl Size by First Operation Data Location Incoming", x = 
          "First Operation Data Location", y = "Pearl Size (mm)")
-p2
 
 ####p2 remove NA
 
@@ -101,12 +100,12 @@ print(p2)
 
 
 ####pearl size by saibo area with NA
-p3 <- ggplot(data, aes(x = First_Op_Data_Saibo_Area, y = Pearl_Grading_Data_Size_mm)) +
+#p3 <- ggplot(data, aes(x = First_Op_Data_Saibo_Area, y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
   labs(title = "Pearl Size by Saibo Area", x = 
     "First Operation Data Saibo Area", y = "Pearl Size (mm)")
 
-p3
+
 
 
 
@@ -126,14 +125,38 @@ p3 <- ggplot(data %>% drop_na(First_Op_Data_Saibo_Area, Pearl_Grading_Data_Size_
 # Print the plot
 print(p3)
 
+####IDEA MAYBE DO ANOVA TO TEST IF F3 AND R3 SIGNIFICANT IN PRODUCING LARGER PEARL SIZES
 
 
 
-p4 <- ggplot(data, aes(x = HealthStatus, y = PearlSize)) +
+#### p4 with NA
+#p4 <- ggplot(data, aes(x = First_Op_Data_Recovering_doubleback
+#, y = Pearl_Grading_Data_Size_mm)) +
   geom_boxplot() +
-  labs(title = "Pearl Size by Health Status")
+  labs(title = "Pearl Size by Health Status", 
+       x = "First Operation Data Recovering Double-back", 
+       y = "Pearl Size (mm)")
 
-ggarrange(p1, p2, p3, ncol = 3)
+#### p4 remove NA
+library(ggplot2)
+library(dplyr)
+
+# Remove NAs for the specific columns used in the plot
+p4 <- ggplot(data %>% drop_na(First_Op_Data_Recovering_doubleback, Pearl_Grading_Data_Size_mm), 
+             aes(x = First_Op_Data_Recovering_doubleback, y = Pearl_Grading_Data_Size_mm)) +
+  geom_boxplot() +
+  labs(title = "Pearl Size by Health Status", 
+       x = "First Operation Data Recovering Double-back", 
+       y = "Pearl Size (mm)")
+
+# Print the plot
+print(p4)
+
+
+
+#ggarrange(p1, p2, p3, p4, ncol = 4)
+
+ggarrange(p1,p2, p3, p4)
 
 # -------------------------------------------------------------
 # 3. ANOVA: Which factors affect Pearl Size?
@@ -142,6 +165,16 @@ ggarrange(p1, p2, p3, ncol = 3)
 # Linear model
 lm1 <- lm(PearlSize ~ Location + SaiboArea + HealthStatus, data = data)
 anova(lm1)
+
+
+lm1 <- lm(Pearl_Grading_Data_Size_mm
+ ~ Shell_Metrics_Location
+ + First_Op_Data_Saibo_Area
+ + First_Op_Data_Recovering_doubleback
+, data = data)
+anova(lm1)
+
+
 
 # Post-hoc tests
 emmeans(lm1, pairwise ~ Location)
