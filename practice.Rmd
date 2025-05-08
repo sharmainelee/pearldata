@@ -1,0 +1,126 @@
+---
+title: "practice"
+output: html_document
+date: "2025-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# Load libraries
+library(tidyverse)
+library(ggplot2)
+library(lme4)
+library(car)         # for ANOVA
+library(emmeans)     # for post-hoc tests
+library(ggpubr)      # for combining plots
+library(readr)
+
+
+# View structure and summary
+str(PearlOperationalData)
+summary(PearlOperationalData)
+
+# -------------------------------------------------------------
+# 1. Data cleaning and checking
+# -------------------------------------------------------------
+# Check for NA values
+colSums(is.na(PearlOperationalData))
+
+# Convert categorical variables
+#data <- PearlOperationalData %>%
+  #mutate(across(c(Location, SaiboArea, HealthStatus, ColourCat), as.factor))
+
+data <- PearlOperationalData %>%
+  mutate(across(c(Shell_Metrics_Location, First_Op_Data_LocationIncoming, First_Op_Data_Saibo_Area, Matched_Donor_Data_Saibo_Area_Round_NumberRegions, Matched_Donor_Data_Saibo_Area_Flat_NumberRegions,First_Op_Data_Recovering_doubleback,First_Op_Data_Nacre_Lip_Colour_Round, First_Op_Data_Nacre_Lip_Colour_Flat, Pearl_Grading_Data_Colour, Shell_and_Pearl_colour_Comparisons_Round_Flat_HOST_542_days, Shell_and_Pearl_colour_Comparisons_Round_Flat_HOST_880_days, Shell_and_Pearl_colour_Comparisons_Round_Flat_DONOR_880_days, Matched_Donor_Data_Nacre_lip_colour_Round, Matched_Donor_Data_Nacre_lip_colour_Flat), as.factor))
+
+# -------------------------------------------------------------
+# 2. Descriptive plots
+# -------------------------------------------------------------
+
+# Pearl size distribution
+ggplot(data, aes(x = Pearl_Grading_Data_Size_mm)) +
+  geom_histogram(binwidth = 0.5, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Pearl Size", x = "Pearl Size (mm)", y = "Frequency")
+
+
+
+
+# Boxplots for pearl size by factors
+p1 <- ggplot(data, aes(x = Location, y = PearlSize)) +
+  geom_boxplot() +
+  labs(title = "Pearl Size by Location")
+
+p2 <- ggplot(data, aes(x = SaiboArea, y = PearlSize)) +
+  geom_boxplot() +
+  labs(title = "Pearl Size by Saibo Area")
+
+p3 <- ggplot(data, aes(x = HealthStatus, y = PearlSize)) +
+  geom_boxplot() +
+  labs(title = "Pearl Size by Health Status")
+
+ggarrange(p1, p2, p3, ncol = 3)
+
+
+
+
+p1 <- ggplot(data, aes(x = Location, y = PearlSize)) +
+  geom_boxplot() +
+  labs(title = "Pearl Size by Location")
+
+p2 <- ggplot(data, aes(x = SaiboArea, y = PearlSize)) +
+  geom_boxplot() +
+  labs(title = "Pearl Size by Saibo Area")
+
+p3 <- ggplot(data, aes(x = HealthStatus, y = PearlSize)) +
+  geom_boxplot() +
+  labs(title = "Pearl Size by Health Status")
+
+ggarrange(p1, p2, p3, ncol = 3)
+
+# -------------------------------------------------------------
+# 3. ANOVA: Which factors affect Pearl Size?
+# -------------------------------------------------------------
+
+# Linear model
+lm1 <- lm(PearlSize ~ Location + SaiboArea + HealthStatus, data = data)
+anova(lm1)
+
+# Post-hoc tests
+emmeans(lm1, pairwise ~ Location)
+emmeans(lm1, pairwise ~ SaiboArea)
+emmeans(lm1, pairwise ~ HealthStatus)
+
+# -------------------------------------------------------------
+# 4. Mixed Model (for genetic analysis prep)
+# -------------------------------------------------------------
+
+# Assuming you have 'AnimalID', 'DamID', and 'SireID' for pedigree
+# If you aim to estimate heritability and EBVs, use animal models
+
+# Example model for pearl colour (quantitative e.g. RGB_Red)
+model_rgb <- lmer(RGB_Red ~ Location + (1|AnimalID), data = data)
+
+# Summary
+summary(model_rgb)
+
+# Repeat for other traits like RGB_Green, RGB_Blue, PearlSize
+
+# -------------------------------------------------------------
+# 5. Suggestions for further genetic analysis
+# -------------------------------------------------------------
+
+# Use packages like MCMCglmm or sommer for animal model-based heritability:
+# install.packages("sommer")
+library(sommer)
+
+# Example heritability model for quantitative colour
+herit_model <- mmer(RGB_Red ~ Location,
+                    random = ~ vsr(AnimalID, Gu = A_matrix),
+                    data = data)
+
+# You need to build A_matrix from pedigree first using pedigree::kinship or sommer::A.mat
+```
