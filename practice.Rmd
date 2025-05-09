@@ -334,6 +334,133 @@ ggplot(plot_data) +
 
 
 
+####  did the year 2019 batch change colour in year 2020?
+library(ggplot2)
+library(dplyr)
+
+# Define custom colors for lip types
+lip_colors <- c(
+  "Gr" = "green", 
+  "S" = "#C0C0C0", 
+  "Y" = "yellow"
+)
+
+# Filter for the 2019 batch only, removing NAs
+batch_2019 <- data %>%
+  drop_na(Shell_Metrics_Nacre_Lip_Colour_Round, 
+          Shell_Metrics_Nacre_Lip_Colour_Flat, 
+          First_Op_Data_Nacre_Lip_Colour_Round, 
+          First_Op_Data_Nacre_Lip_Colour_Flat)
+
+# Combine round and flat lip color data for easier comparison
+color_data <- batch_2019 %>%
+  select(Shell_Metrics_Nacre_Lip_Colour_Round, First_Op_Data_Nacre_Lip_Colour_Round) %>%
+  rename(Year_2019 = Shell_Metrics_Nacre_Lip_Colour_Round, 
+         Year_2020 = First_Op_Data_Nacre_Lip_Colour_Round) %>%
+  mutate(Type = "Round") %>%
+  bind_rows(
+    batch_2019 %>%
+      select(Shell_Metrics_Nacre_Lip_Colour_Flat, First_Op_Data_Nacre_Lip_Colour_Flat) %>%
+      rename(Year_2019 = Shell_Metrics_Nacre_Lip_Colour_Flat, 
+             Year_2020 = First_Op_Data_Nacre_Lip_Colour_Flat) %>%
+      mutate(Type = "Flat")
+  )
+
+# Create a comparison plot
+p9 <- ggplot(color_data, aes(x = Year_2019, fill = Year_2020)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~Type) +
+  labs(title = "Nacre Lip Colour Change (2019 to 2020)", 
+       x = "2019 Nacre Lip Colour", 
+       y = "Proportion in 2020", 
+       fill = "2020 Nacre Lip Colour") +
+  scale_fill_manual(values = lip_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p9)
+
+
+
+
+
+
+#### did lip colour at FOP relate to pearl colour
+
+library(dplyr)
+library(ggplot2)
+
+# Remove NAs for the relevant columns
+data_clean <- data %>% 
+  drop_na(First_Op_Data_Nacre_Lip_Colour_Round, 
+          First_Op_Data_Nacre_Lip_Colour_Flat, 
+          Pearl_Grading_Data_Colour)
+
+# Cross-tabulation
+round_table <- table(data_clean$First_Op_Data_Nacre_Lip_Colour_Round, data_clean$Pearl_Grading_Data_Colour)
+flat_table <- table(data_clean$First_Op_Data_Nacre_Lip_Colour_Flat, data_clean$Pearl_Grading_Data_Colour)
+
+# Chi-square test
+round_test <- chisq.test(round_table)
+flat_test <- chisq.test(flat_table)
+
+round_test
+flat_test
+
+#Nacre lip color (round or flat) is independent of pearl color
+
+
+
+
+# Round lip color relationship
+ggplot(data_clean, aes(x = First_Op_Data_Nacre_Lip_Colour_Round, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour by Round Nacre Lip Colour", 
+       x = "Round Nacre Lip Colour", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+# Flat lip color relationship
+ggplot(data_clean, aes(x = First_Op_Data_Nacre_Lip_Colour_Flat, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour by Flat Nacre Lip Colour", 
+       x = "Flat Nacre Lip Colour", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
