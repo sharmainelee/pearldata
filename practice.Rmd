@@ -163,8 +163,8 @@ ggarrange(p1,p2, p3, p4)
 # -------------------------------------------------------------
 
 # Linear model
-lm1 <- lm(PearlSize ~ Location + SaiboArea + HealthStatus, data = data)
-anova(lm1)
+#lm1 <- lm(PearlSize ~ Location + SaiboArea + HealthStatus, data = data)
+#anova(lm1)
 
 
 lm1 <- lm(Pearl_Grading_Data_Size_mm
@@ -177,10 +177,179 @@ anova(lm1)
 
 
 # Post-hoc tests
-emmeans(lm1, pairwise ~ Location)
-emmeans(lm1, pairwise ~ SaiboArea)
-emmeans(lm1, pairwise ~ HealthStatus)
+#emmeans(lm1, pairwise ~ Location)
+#emmeans(lm1, pairwise ~ SaiboArea)
+#emmeans(lm1, pairwise ~ HealthStatus)
 
+emmeans(lm1, pairwise ~ Shell_Metrics_Location)
+emmeans(lm1, pairwise ~ First_Op_Data_Saibo_Area)
+emmeans(lm1, pairwise ~ First_Op_Data_Recovering_doubleback)
+
+#### First_Op_Data_Saibo_Area vs Pearl_Grading_Data_Colour
+
+library(ggplot2)
+library(dplyr)
+
+# Remove NAs for the relevant columns
+plot_data <- data %>% drop_na(First_Op_Data_Saibo_Area, Pearl_Grading_Data_Colour)
+
+# Plot
+p5 <- ggplot(plot_data, aes(x = First_Op_Data_Saibo_Area, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Distribution of Pearl Colour by Saibo Area", 
+       x = "First Operation Data Saibo Area", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  theme_minimal()
+
+print(p5)
+
+
+
+library(ggmosaic)
+
+ggplot(plot_data) +
+  geom_mosaic(aes(weight = 1, x = product(First_Op_Data_Saibo_Area), fill = Pearl_Grading_Data_Colour)) +
+  labs(title = "Pearl Colour by Saibo Area", 
+       x = "First Operation Data Saibo Area", 
+       y = "Pearl Colour") +
+   theme(axis.text.y = element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x = element_text(angle = 90),
+        legend.position = "right")
+
+
+
+
+library(ggplot2)
+library(dplyr)
+
+# Define the updated pearl colors
+pearl_colors <- c(
+  "Blue" = "#0000FF", 
+  "Champagne" = "#F7E7CE", 
+  "Cream" = "#FFFDD0", 
+  "Gold" = "#FFD700", 
+  "Gold Silver" = "#A6996E", 
+  "Gold White" = "#F8DE7E", 
+  "Green" = "#008000", 
+  "Light Champ" = "#E7E2D7", 
+  "Low Grade" = "#808080", 
+  "No Grade" = "#36454F", 
+  "Ombre" = "#326872", 
+  "Pair" = "#C8A2C8", 
+  "Peach" = "#FFE5B4", 
+  "Rainbow" = "#FF00FF", 
+  "Silver" = "#C0C0C0", 
+  "Silver Gold" = "#C6C7BE", 
+  "Silver Pink" = "#D1C5D3", 
+  "Silver White" = "#E5E4E2", 
+  "White" = "#F9F6EE", 
+  "White Cream" = "#FFF8DC", 
+  "White Gold" = "#F7EAD5", 
+  "White Pink" = "#FFD1DC", 
+  "White Silver" = "#F2F0EF"
+)
+
+# Prepare data (remove NAs)
+plot_data <- data %>% drop_na(First_Op_Data_Saibo_Area, Pearl_Grading_Data_Colour)
+
+# Create the plot
+p6 <- ggplot(plot_data, aes(x = First_Op_Data_Saibo_Area, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Distribution of Pearl Colour by Saibo Area", 
+       x = "First Operation Data Saibo Area", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+# Print the plot
+print(p6)
+
+
+#9 MAY 2025
+
+library(ggplot2)
+library(dplyr)
+
+# Define the updated pearl colors
+pearl_colors <- c(
+  "Blue" = "#0000FF", 
+  "Champagne" = "#F7E7CE", 
+  "Cream" = "#FFFDD0", 
+  "Gold" = "#FFD700", 
+  "Gold Silver" = "#A6996E", 
+  "Gold White" = "#F8DE7E", 
+  "Green" = "#008000", 
+  "Light Champ" = "#E7E2D7", 
+  "Low Grade" = "#808080", 
+  "No Grade" = "#36454F", 
+  "Ombre" = "#326872", 
+  "Pair" = "#C8A2C8", 
+  "Peach" = "#FFE5B4", 
+  "Rainbow" = "#FF00FF", 
+  "Silver" = "#C0C0C0", 
+  "Silver Gold" = "#C6C7BE", 
+  "Silver Pink" = "#D1C5D3", 
+  "Silver White" = "#E5E4E2", 
+  "White" = "#F9F6EE", 
+  "White Cream" = "#FFF8DC", 
+  "White Gold" = "#F7EAD5", 
+  "White Pink" = "#FFD1DC", 
+  "White Silver" = "#F2F0EF"
+)
+
+# Remove NAs for the relevant columns
+plot_data <- data %>% drop_na(Pearl_Grading_Data_Colour, Shell_Metrics_Location)
+
+# Create the plot
+p7 <- ggplot(plot_data, aes(x = Shell_Metrics_Location, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour Distribution by Shell Location", 
+       x = "Shell Metrics Location", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Print the plot
+print(p7)
+
+#alternative
+library(ggmosaic)
+
+ggplot(plot_data) +
+  geom_mosaic(aes(weight = 1, x = product(Shell_Metrics_Location), fill = Pearl_Grading_Data_Colour)) +
+  labs(title = "Pearl Colour by Shell Location", 
+       x = "Shell Metrics Location", 
+       y = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x = element_text(angle = 90),
+        legend.position = "right")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##############################################################
 # -------------------------------------------------------------
 # 4. Mixed Model (for genetic analysis prep)
 # -------------------------------------------------------------
