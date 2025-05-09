@@ -396,7 +396,7 @@ data_clean <- data %>%
           First_Op_Data_Nacre_Lip_Colour_Flat, 
           Pearl_Grading_Data_Colour)
 
-# Cross-tabulation
+# Cross-tabulation ******* does it make sense???
 round_table <- table(data_clean$First_Op_Data_Nacre_Lip_Colour_Round, data_clean$Pearl_Grading_Data_Colour)
 flat_table <- table(data_clean$First_Op_Data_Nacre_Lip_Colour_Flat, data_clean$Pearl_Grading_Data_Colour)
 
@@ -435,8 +435,70 @@ ggplot(data_clean, aes(x = First_Op_Data_Nacre_Lip_Colour_Flat, fill = Pearl_Gra
 
 
 
+####Gonad condition related to pearl colour? 
+library(ggplot2)
+library(dplyr)
+
+# Prepare the data for each gonad condition source
+gonad_data <- data %>%
+  drop_na(Shell_Metrics_Gonad_Condition, Pearl_Grading_Data_Colour) %>%
+  select(Shell_Metrics_Gonad_Condition, Pearl_Grading_Data_Colour) %>%
+  rename(Gonad_Condition = Shell_Metrics_Gonad_Condition) %>%
+  mutate(Source = "Shell Metrics") %>%
+  bind_rows(
+    data %>%
+      drop_na(First_Op_Data_Gonad_Condition, Pearl_Grading_Data_Colour) %>%
+      select(First_Op_Data_Gonad_Condition, Pearl_Grading_Data_Colour) %>%
+      rename(Gonad_Condition = First_Op_Data_Gonad_Condition) %>%
+      mutate(Source = "First Operation")
+  ) %>%
+  bind_rows(
+    data %>%
+      drop_na(Matched_Donor_Data_Gonad_Condition, Pearl_Grading_Data_Colour) %>%
+      select(Matched_Donor_Data_Gonad_Condition, Pearl_Grading_Data_Colour) %>%
+      rename(Gonad_Condition = Matched_Donor_Data_Gonad_Condition) %>%
+      mutate(Source = "Matched Donor")
+  )
+
+# Create the plot
+p11 <- ggplot(gonad_data, aes(x = Gonad_Condition, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~Source) +
+  labs(title = "Gonad Condition vs Pearl Colour", 
+       x = "Gonad Condition", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p11)
 
 
+
+
+#### Shell_Metrics_Gonad_Condition, First_Op_Data_Gonad_Condition,  Matched_Donor_Data_Gonad_Condition  are categorical variables. compare the gonad conditions to Pearl_Grading_Data_Colour
+
+## Chi-Square test for association
+
+library(dplyr)
+library(ggplot2)
+
+# Remove NAs for the relevant columns
+data_clean <- data %>% 
+  drop_na(Shell_Metrics_Gonad_Condition, 
+          First_Op_Data_Gonad_Condition, 
+          Matched_Donor_Data_Gonad_Condition, 
+          Pearl_Grading_Data_Colour)
+
+# Chi-square tests
+shell_test <- chisq.test(table(data_clean$Shell_Metrics_Gonad_Condition, data_clean$Pearl_Grading_Data_Colour))
+first_op_test <- chisq.test(table(data_clean$First_Op_Data_Gonad_Condition, data_clean$Pearl_Grading_Data_Colour))
+donor_test <- chisq.test(table(data_clean$Matched_Donor_Data_Gonad_Condition, data_clean$Pearl_Grading_Data_Colour))
+
+shell_test
+first_op_test
+donor_test
 
 
 
