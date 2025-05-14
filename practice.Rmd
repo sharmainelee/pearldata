@@ -855,6 +855,80 @@ print(p_grade)
 
 
 
+#### compare reseed vs size of pearl/grade/colour
+
+
+library(ggplot2)
+library(dplyr)
+
+# Remove NAs for the relevant columns
+data_clean <- data %>% 
+  drop_na(Pearl_Harvest_Data_Reseed, 
+          Pearl_Grading_Data_Size_mm, 
+          Pearl_Grading_Data_Grade, 
+          Pearl_Grading_Data_Colour)
+
+# Quick summary to check data distribution
+summary(data_clean)
+
+
+
+# Box plot for Pearl Size y Y
+ggplot(data_clean, aes(x = Pearl_Harvest_Data_Reseed, y = Pearl_Grading_Data_Size_mm, fill = Pearl_Harvest_Data_Reseed)) +
+  geom_boxplot(outlier.color = "red", outlier.size = 2) +
+  labs(title = "Pearl Size by Reseed Status", 
+       x = "Reseed Status", 
+       y = "Pearl Size (mm)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# ANOVA for Pearl Size
+anova_size <- aov(Pearl_Grading_Data_Size_mm ~ Pearl_Harvest_Data_Reseed, data = data_clean)
+summary(anova_size)
+
+# Post-hoc test if significant
+if (summary(anova_size)[[1]]$`Pr(>F)`[1] < 0.05) {
+  library(multcomp)
+  posthoc_size <- TukeyHSD(anova_size)
+  print(posthoc_size)
+  plot(posthoc_size, las = 1, col = "blue")
+}
+
+
+
+### made the y and Y same for reseed vs pearl size
+library(ggplot2)
+library(dplyr)
+
+# Standardize the Reseed Status to be consistent
+data_clean <- data_clean %>%
+  mutate(Pearl_Harvest_Data_Reseed = toupper(Pearl_Harvest_Data_Reseed))
+
+# Plot the updated data
+ggplot(data_clean, aes(x = Pearl_Harvest_Data_Reseed, y = Pearl_Grading_Data_Size_mm, fill = Pearl_Harvest_Data_Reseed)) +
+  geom_boxplot(outlier.color = "red", outlier.size = 2) +
+  labs(title = "Pearl Size by Reseed Status", 
+       x = "Reseed Status", 
+       y = "Pearl Size (mm)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Run ANOVA
+anova_size <- aov(Pearl_Grading_Data_Size_mm ~ Pearl_Harvest_Data_Reseed, data = data_clean)
+summary(anova_size)
+
+
+# Post-hoc test if ANOVA is significant
+if (summary(anova_size)[[1]]$`Pr(>F)`[1] < 0.05) {
+  library(multcomp)
+  
+  # Tukey HSD test
+  posthoc_size <- TukeyHSD(anova_size)
+  print(posthoc_size)
+  
+  # Plot the post-hoc results for easier interpretation
+  plot(posthoc_size, las = 1, col = "blue")
+}
 
 
 
@@ -862,6 +936,91 @@ print(p_grade)
 
 
 
+# Chi-square test for Pearl Grade
+grade_table <- table(data_clean$Pearl_Harvest_Data_Reseed, data_clean$Pearl_Grading_Data_Grade)
+grade_test <- chisq.test(grade_table)
+grade_test
+
+# Stacked bar plot for Pearl Grade
+ggplot(data_clean, aes(x = Pearl_Harvest_Data_Reseed, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Grade by Reseed Status", 
+       x = "Reseed Status", 
+       y = "Proportion", 
+       fill = "Pearl Grade") +
+  theme_minimal()
+
+
+
+## WITH na
+library(ggplot2)
+library(dplyr)
+
+# Set the correct factor levels for the grade
+data_clean <- data_clean %>%
+  mutate(Pearl_Grading_Data_Grade = factor(Pearl_Grading_Data_Grade, 
+                                           levels = c("A1+", "A1", "A2+", "A2", "A3+", "A3", "A", 
+                                                      "B1+", "B1", "B2+", "B2", "LG", "NG"),
+                                           ordered = TRUE))
+
+# Plot the data with correct grade ordering
+ggplot(data_clean, aes(x = Pearl_Harvest_Data_Reseed, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Grade by Reseed Status", 
+       x = "Reseed Status", 
+       y = "Proportion", 
+       fill = "Pearl Grade") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Spectral") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+##WITHOUT NA
+library(ggplot2)
+library(dplyr)
+
+# Set the correct factor levels for the grade and remove NAs
+data_clean <- data_clean %>%
+  drop_na(Pearl_Harvest_Data_Reseed, Pearl_Grading_Data_Grade) %>%
+  mutate(Pearl_Grading_Data_Grade = factor(Pearl_Grading_Data_Grade, 
+                                           levels = c("A1+", "A1", "A2+", "A2", "A3+", "A3", "A", 
+                                                      "B1+", "B1", "B2+", "B2", "LG", "NG"),
+                                           ordered = TRUE))
+
+# Plot the cleaned data
+ggplot(data_clean, aes(x = Pearl_Harvest_Data_Reseed, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Grade by Reseed Status", 
+       x = "Reseed Status", 
+       y = "Proportion", 
+       fill = "Pearl Grade") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Spectral") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+
+
+
+
+
+
+
+
+# Chi-square test for Pearl Colour
+colour_table <- table(data_clean$Pearl_Harvest_Data_Reseed, data_clean$Pearl_Grading_Data_Colour)
+colour_test <- chisq.test(colour_table)
+colour_test
+
+# Stacked bar plot for Pearl Colour
+ggplot(data_clean, aes(x = Pearl_Harvest_Data_Reseed, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour by Reseed Status", 
+       x = "Reseed Status", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  theme_minimal()
 
 
 
