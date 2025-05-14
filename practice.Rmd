@@ -503,6 +503,377 @@ donor_test
 
 
 
+#### visualise gonad condition and pearl colour
+
+
+# Shell Metrics Gonad Condition
+ggplot(data_clean, aes(x = Shell_Metrics_Gonad_Condition, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour by Shell Metrics Gonad Condition", 
+       x = "Shell Metrics Gonad Condition", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+# First Operation Gonad Condition
+ggplot(data_clean, aes(x = First_Op_Data_Gonad_Condition, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour by First Operation Gonad Condition", 
+       x = "First Operation Gonad Condition", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+# Matched Donor Gonad Condition
+ggplot(data_clean, aes(x = Matched_Donor_Data_Gonad_Condition, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour by Matched Donor Gonad Condition", 
+       x = "Matched Donor Gonad Condition", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+
+#### compare Shell_Metrics_Shell_Weight_g, First_Op_Data_Shell_Weight_g, Pearl_Harvest_Data_Shell_Weight_g, Matched_Donor_Data_Shell_Weight_g with Pearl_Grading_Data_Size_mm
+
+#data preparation
+library(ggplot2)
+library(dplyr)
+library(GGally)
+
+# Remove NAs for the relevant columns
+data_clean <- data %>% 
+  drop_na(Shell_Metrics_Shell_Weight_g, 
+          First_Op_Data_Shell_Weight_g, 
+          Pearl_Harvest_Data_Shell_Weight_g, 
+          Matched_Donor_Data_Shell_Weight_g, 
+          Pearl_Grading_Data_Size_mm)
+
+# Quick summary to check data distribution
+summary(data_clean)
+
+
+##scatter plots with linear regression
+
+# Scatter plots with regression lines
+ggplot(data_clean, aes(x = Shell_Metrics_Shell_Weight_g, y = Pearl_Grading_Data_Size_mm)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(title = "Pearl Size vs Shell Metrics Shell Weight", 
+       x = "Shell Metrics Shell Weight (g)", 
+       y = "Pearl Size (mm)") +
+  theme_minimal()
+
+ggplot(data_clean, aes(x = First_Op_Data_Shell_Weight_g, y = Pearl_Grading_Data_Size_mm)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "green", se = FALSE) +
+  labs(title = "Pearl Size vs First Operation Shell Weight", 
+       x = "First Op Shell Weight (g)", 
+       y = "Pearl Size (mm)") +
+  theme_minimal()
+
+ggplot(data_clean, aes(x = Pearl_Harvest_Data_Shell_Weight_g, y = Pearl_Grading_Data_Size_mm)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "gold", se = FALSE) +
+  labs(title = "Pearl Size vs Pearl Harvest Shell Weight", 
+       x = "Pearl Harvest Shell Weight (g)", 
+       y = "Pearl Size (mm)") +
+  theme_minimal()
+
+ggplot(data_clean, aes(x = Matched_Donor_Data_Shell_Weight_g, y = Pearl_Grading_Data_Size_mm)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "purple", se = FALSE) +
+  labs(title = "Pearl Size vs Matched Donor Shell Weight", 
+       x = "Matched Donor Shell Weight (g)", 
+       y = "Pearl Size (mm)") +
+  theme_minimal()
+
+####correlation matrix
+
+# Create a subset for correlation
+cor_data <- data_clean %>%
+  select(Shell_Metrics_Shell_Weight_g, 
+         First_Op_Data_Shell_Weight_g, 
+         Pearl_Harvest_Data_Shell_Weight_g, 
+         Matched_Donor_Data_Shell_Weight_g, 
+         Pearl_Grading_Data_Size_mm)
+
+# Plot correlation matrix
+ggpairs(cor_data, title = "Correlation Matrix of Shell Weights and Pearl Size")
+
+
+
+##Regression Models
+
+# Linear models
+model1 <- lm(Pearl_Grading_Data_Size_mm ~ Shell_Metrics_Shell_Weight_g, data = data_clean)
+model2 <- lm(Pearl_Grading_Data_Size_mm ~ First_Op_Data_Shell_Weight_g, data = data_clean)
+model3 <- lm(Pearl_Grading_Data_Size_mm ~ Pearl_Harvest_Data_Shell_Weight_g, data = data_clean)
+model4 <- lm(Pearl_Grading_Data_Size_mm ~ Matched_Donor_Data_Shell_Weight_g, data = data_clean)
+
+summary(model1)
+summary(model2)
+summary(model3)
+summary(model4)
+
+
+
+
+
+#### pearl size related to location?
+## data preparation
+library(ggplot2)
+library(dplyr)
+
+# Remove NAs for the relevant columns
+data_clean <- data %>% 
+  drop_na(Shell_Metrics_Location, Pearl_Grading_Data_Size_mm)
+
+# Quick summary to check data distribution
+summary(data_clean)
+
+
+# Box plot to visualize the relationship
+ggplot(data_clean, aes(x = Shell_Metrics_Location, y = Pearl_Grading_Data_Size_mm)) +
+  geom_boxplot(fill = "#69b3a2", color = "black", outlier.color = "red", outlier.size = 2) +
+  labs(title = "Pearl Size by Shell Metrics Location", 
+       x = "Shell Metrics Location", 
+       y = "Pearl Size (mm)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Run ANOVA
+anova_model <- aov(Pearl_Grading_Data_Size_mm ~ Shell_Metrics_Location, data = data_clean)
+summary(anova_model)
+
+# Post-hoc test #if significant, however it is not
+if (summary(anova_model)[[1]]$`Pr(>F)`[1] < 0.05) {
+  library(multcomp)
+  posthoc_results <- TukeyHSD(anova_model)
+  print(posthoc_results)
+  
+  # Plot the post-hoc results
+  plot(posthoc_results, las = 1, col = "blue")
+}
+
+
+
+
+
+
+
+##doubleback vs location/colour/size/grade
+
+library(ggplot2)
+library(dplyr)
+
+
+# 1. Double-back vs Location
+p_location <- ggplot(data, aes(x = First_Op_Data_Recovering_doubleback, fill = Shell_Metrics_Location)) +
+  geom_bar(position = "fill") +
+  labs(title = "Double-back Recovery vs Location", 
+       x = "Double-back Recovery", 
+       y = "Proportion", 
+       fill = "Location") +
+  theme_minimal()
+
+print(p_location)
+
+
+
+
+
+# 2. Double-back vs Pearl Colour
+p_colour <- ggplot(data, aes(x = First_Op_Data_Recovering_doubleback, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Double-back Recovery vs Pearl Colour", 
+       x = "Double-back Recovery", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+print(p_colour)
+
+# 3. Double-back vs Pearl Size
+p_size <- ggplot(data, aes(x = First_Op_Data_Recovering_doubleback, y = Pearl_Grading_Data_Size_mm)) +
+  geom_boxplot() +
+  labs(title = "Double-back Recovery vs Pearl Size", 
+       x = "Double-back Recovery", 
+       y = "Pearl Size (mm)") +
+  theme_minimal()
+
+print(p_size)
+
+# 4. Double-back vs Pearl Grade
+p_grade <- ggplot(data, aes(x = First_Op_Data_Recovering_doubleback, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  labs(title = "Double-back Recovery vs Pearl Grade", 
+       x = "Double-back Recovery", 
+       y = "Proportion", 
+       fill = "Pearl Grade") +
+  theme_minimal()
+
+print(p_grade)
+
+
+## remove NA for doubleback recovery vs location/colour/size/grade
+library(ggplot2)
+library(dplyr)
+
+
+
+# Helper function to drop both NA and "na"
+clean_data <- function(df, cols) {
+  df %>%
+    drop_na(all_of(cols)) %>%
+    filter(!if_any(all_of(cols), ~ . %in% c("na", "NA")))
+}
+
+# 1. Double-back vs Location (NA and "na" Removed)
+p_location <- clean_data(data, c("First_Op_Data_Recovering_doubleback", "Shell_Metrics_Location")) %>%
+  ggplot(aes(x = First_Op_Data_Recovering_doubleback, fill = Shell_Metrics_Location)) +
+  geom_bar(position = "fill") +
+  labs(title = "Double-back Recovery vs Location", 
+       x = "Double-back Recovery", 
+       y = "Proportion", 
+       fill = "Location") +
+  theme_minimal()
+
+print(p_location)
+
+# 2. Double-back vs Pearl Colour (NA and "na" Removed)
+p_colour <- clean_data(data, c("First_Op_Data_Recovering_doubleback", "Pearl_Grading_Data_Colour")) %>%
+  ggplot(aes(x = First_Op_Data_Recovering_doubleback, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Double-back Recovery vs Pearl Colour", 
+       x = "Double-back Recovery", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+print(p_colour)
+
+# 3. Double-back vs Pearl Size (NA and "na" Removed)
+p_size <- clean_data(data, c("First_Op_Data_Recovering_doubleback", "Pearl_Grading_Data_Size_mm")) %>%
+  ggplot(aes(x = First_Op_Data_Recovering_doubleback, y = Pearl_Grading_Data_Size_mm)) +
+  geom_boxplot() +
+  labs(title = "Double-back Recovery vs Pearl Size", 
+       x = "Double-back Recovery", 
+       y = "Pearl Size (mm)") +
+  theme_minimal()
+
+print(p_size)
+
+# 4. Double-back vs Pearl Grade (NA and "na" Removed)
+library(ggplot2)
+library(dplyr)
+
+# Define the ordered levels for Pearl_Grading_Data_Grade
+grade_levels <- c("A1+", "A1", "A2+", "A2", "A3+", "A3", "A", 
+                  "B1+", "B1", "B2+", "B2", "LG", "NG")
+
+# Clean the data to remove NA and "na"
+cleaned_data <- data %>%
+  drop_na(First_Op_Data_Recovering_doubleback, Pearl_Grading_Data_Grade) %>%
+  filter(!First_Op_Data_Recovering_doubleback %in% c("na", "NA"),
+         !Pearl_Grading_Data_Grade %in% c("na", "NA")) %>%
+  mutate(Pearl_Grading_Data_Grade = factor(Pearl_Grading_Data_Grade, levels = grade_levels))
+
+# Create the plot
+p_grade <- ggplot(cleaned_data, aes(x = First_Op_Data_Recovering_doubleback, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  labs(title = "Double-back Recovery vs Pearl Grade", 
+       x = "Double-back Recovery", 
+       y = "Proportion", 
+       fill = "Pearl Grade") +
+  theme_minimal()
+
+print(p_grade)
+
+
+##nuclei size - size of pearl/ colour/ grade
+library(ggplot2)
+library(dplyr)
+
+# Define the ordered levels for Pearl Grades
+grade_levels <- c("A1+", "A1", "A2+", "A2", "A3+", "A3", "A", 
+                  "B1+", "B1", "B2+", "B2", "LG", "NG")
+
+
+
+# Helper function to clean data
+clean_data <- function(df, cols) {
+  df %>%
+    drop_na(all_of(cols)) %>%
+    filter(!if_any(all_of(cols), ~ . %in% c("na", "NA")))
+}
+
+# 1. Nuclei Size vs Pearl Size
+p_size <- clean_data(data, c("First_Op_Data_Nuclei_Size", "Pearl_Grading_Data_Size_mm")) %>%
+  ggplot(aes(x = First_Op_Data_Nuclei_Size, y = Pearl_Grading_Data_Size_mm)) +
+  geom_point(alpha = 0.6, color = "#4682B4") +
+  geom_smooth(method = "lm", color = "#FF4500", se = FALSE) +
+  labs(title = "Nuclei Size vs Pearl Size", 
+       x = "Nuclei Size (mm)", 
+       y = "Pearl Size (mm)") +
+  theme_minimal()
+
+print(p_size)
+
+# 2. Nuclei Size vs Pearl Colour
+p_colour <- clean_data(data, c("First_Op_Data_Nuclei_Size", "Pearl_Grading_Data_Colour")) %>%
+  ggplot(aes(x = First_Op_Data_Nuclei_Size, fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Nuclei Size vs Pearl Colour", 
+       x = "Nuclei Size (mm)", 
+       y = "Proportion", 
+       fill = "Pearl Colour") +
+  scale_fill_manual(values = pearl_colors) +
+  theme_minimal()
+
+print(p_colour)
+
+# 3. Nuclei Size vs Pearl Grade
+p_grade <- clean_data(data, c("First_Op_Data_Nuclei_Size", "Pearl_Grading_Data_Grade")) %>%
+  mutate(Pearl_Grading_Data_Grade = factor(Pearl_Grading_Data_Grade, levels = grade_levels)) %>%
+  ggplot(aes(x = First_Op_Data_Nuclei_Size, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  labs(title = "Nuclei Size vs Pearl Grade", 
+       x = "Nuclei Size (mm)", 
+       y = "Proportion", 
+       fill = "Pearl Grade") +
+  theme_minimal()
+
+print(p_grade)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
