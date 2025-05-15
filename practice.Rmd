@@ -1354,6 +1354,105 @@ summary(anova_result)
 
 
 
+####PRICE
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Define the updated pearl colors
+pearl_colors <- c(
+  "Blue" = "#0000FF", 
+  "Champagne" = "#F7E7CE", 
+  "Cream" = "#FFFDD0", 
+  "Gold" = "#FFD700", 
+  "Gold Silver" = "#A6996E", 
+  "Gold White" = "#F8DE7E", 
+  "Green" = "#008000", 
+  "Light Champ" = "#E7E2D7", 
+  "Low Grade" = "#808080", 
+  "No Grade" = "#36454F", 
+  "Ombre" = "#326872", 
+  "Pair" = "#C8A2C8", 
+  "Peach" = "#FFE5B4", 
+  "Rainbow" = "#FF00FF", 
+  "Silver" = "#C0C0C0", 
+  "Silver Gold" = "#C6C7BE", 
+  "Silver Pink" = "#D1C5D3", 
+  "Silver White" = "#E5E4E2", 
+  "White" = "#F9F6EE", 
+  "White Cream" = "#FFF8DC", 
+  "White Gold" = "#F7EAD5", 
+  "White Pink" = "#FFD1DC", 
+  "White Silver" = "#F2F0EF"
+)
+
+
+
+# Define ordered levels for the Grade column
+grade_levels <- c("A1+", "A1", "A2+", "A2", "A3+", "A3", "A", 
+                  "B1+", "B1", "B2+", "B2", "LG", "NG")
+data$Pearl_Grading_Data_Grade <- factor(data$Pearl_Grading_Data_Grade, 
+                                        levels = grade_levels, ordered = TRUE)
+
+# Remove rows with NA in the key columns
+cleaned_data <- data %>% 
+  filter(!is.na(Pearl_Grading_Data_Price_AUD), 
+         !is.na(Pearl_Grading_Data_Colour), 
+         !is.na(Pearl_Grading_Data_Size_mm), 
+         !is.na(Pearl_Grading_Data_Grade))
+
+# 1. Boxplot for Price vs Colour
+ggplot(cleaned_data, aes(x = Pearl_Grading_Data_Colour, 
+                         y = Pearl_Grading_Data_Price_AUD, 
+                         fill = Pearl_Grading_Data_Colour)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "black") +
+  scale_fill_manual(values = pearl_colors) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Pearl Price (AUD) vs. Colour",
+       x = "Pearl Colour",
+       y = "Price (AUD)") 
+
+# 2. Scatter Plot for Price vs Size
+ggplot(cleaned_data, aes(x = Pearl_Grading_Data_Size_mm, 
+                         y = Pearl_Grading_Data_Price_AUD, 
+                         color = Pearl_Grading_Data_Grade)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", color = "black", se = TRUE) +
+  labs(title = "Pearl Price (AUD) vs. Pearl Size",
+       x = "Pearl Size (mm)",
+       y = "Price (AUD)") +
+  theme_minimal()
+
+# 3. Boxplot for Price vs Grade
+ggplot(cleaned_data, aes(x = Pearl_Grading_Data_Grade, 
+                         y = Pearl_Grading_Data_Price_AUD, 
+                         fill = Pearl_Grading_Data_Grade)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "black") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Pearl Price (AUD) vs. Grade",
+       x = "Pearl Grade",
+       y = "Price (AUD)") +
+  theme_minimal()
+
+# 4. Correlation Matrix (Size and Price)
+cor_data <- cleaned_data[, c("Pearl_Grading_Data_Price_AUD", "Pearl_Grading_Data_Size_mm")]
+cor_data <- na.omit(cor_data)
+cor_matrix <- cor(cor_data)
+print(cor_matrix)
+
+# 5. ANOVA for Grade
+anova_result <- aov(Pearl_Grading_Data_Price_AUD ~ Pearl_Grading_Data_Grade, 
+                    data = cleaned_data)
+summary(anova_result)
+
+# Post-hoc test for pairwise comparisons if ANOVA is significant
+if (summary(anova_result)[[1]]$`Pr(>F)`[1] < 0.05) {
+  tukey_result <- TukeyHSD(anova_result)
+  print(tukey_result)
+}
 
 
 
