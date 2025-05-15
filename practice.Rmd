@@ -1455,6 +1455,110 @@ if (summary(anova_result)[[1]]$`Pr(>F)`[1] < 0.05) {
 }
 
 
+#### saibo area vs matched donor data saibo area round/flat number regions
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+
+
+
+# Remove rows with NA in the key columns
+cleaned_data <- data %>% 
+  filter(!is.na(First_Op_Data_Saibo_Area), 
+         !is.na(Matched_Donor_Data_Saibo_Area_Round_NumberRegions), 
+         !is.na(Matched_Donor_Data_Saibo_Area_Flat_NumberRegions))
+
+# 1. Scatter Plot for Saibo Area vs Round Regions
+ggplot(cleaned_data, aes(x = Matched_Donor_Data_Saibo_Area_Round_NumberRegions, 
+                         y = First_Op_Data_Saibo_Area)) +
+  geom_point(alpha = 0.7, color = "#0072B2") +
+  geom_smooth(method = "lm", color = "#D55E00", se = TRUE) +
+  labs(title = "Saibo Area vs. Round Number of Regions",
+       x = "Round Number of Regions",
+       y = "Saibo Area (mm²)")
+
+# 2. Scatter Plot for Saibo Area vs Flat Regions
+ggplot(cleaned_data, aes(x = Matched_Donor_Data_Saibo_Area_Flat_NumberRegions, 
+                         y = First_Op_Data_Saibo_Area)) +
+  geom_point(alpha = 0.7, color = "#009E73") +
+  geom_smooth(method = "lm", color = "#E69F00", se = TRUE) +
+  labs(title = "Saibo Area vs. Flat Number of Regions",
+       x = "Flat Number of Regions",
+       y = "Saibo Area (mm²)") +
+  theme_minimal()
+
+
+
+
+
+# Convert columns to numeric (if not already)
+cleaned_data <- cleaned_data %>%
+  mutate(across(c(First_Op_Data_Saibo_Area, 
+                  Matched_Donor_Data_Saibo_Area_Round_NumberRegions, 
+                  Matched_Donor_Data_Saibo_Area_Flat_NumberRegions), 
+                as.numeric))
+
+# Prepare data for correlation
+cor_data <- cleaned_data[, c("First_Op_Data_Saibo_Area", 
+                             "Matched_Donor_Data_Saibo_Area_Round_NumberRegions", 
+                             "Matched_Donor_Data_Saibo_Area_Flat_NumberRegions")]
+
+# Calculate the correlation matrix
+cor_matrix <- cor(cor_data, use = "complete.obs")
+print(cor_matrix)
+
+# Create a heatmap for the correlation matrix ##might be useless
+melted_cor_matrix <- melt(cor_matrix)
+
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "#D73027", high = "#1A9850", mid = "#FFFFBF", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab") +
+  labs(title = "Correlation Matrix for Saibo Area and Donor Regions",
+       x = "",
+       y = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+######
+library(dplyr)
+library(ggplot2)
+
+# Cross-tabulation: First Op Saibo Area vs Round Number Regions
+table_round <- table(data$First_Op_Data_Saibo_Area, data$Matched_Donor_Data_Saibo_Area_Round_NumberRegions)
+print(table_round)
+
+# Chi-squared test
+chisq_round <- chisq.test(table_round)
+print(chisq_round)
+
+# Cross-tabulation: First Op Saibo Area vs Flat Number Regions
+table_flat <- table(data$First_Op_Data_Saibo_Area, data$Matched_Donor_Data_Saibo_Area_Flat_NumberRegions)
+print(table_flat)
+
+# Chi-squared test
+chisq_flat <- chisq.test(table_flat)
+print(chisq_flat)
+
+# Visualize with mosaic plots
+
+# Mosaic plot for Round Number Regions vs Saibo Area
+mosaicplot(table_round, color = TRUE,
+           main = "Mosaic Plot: Saibo Area vs Round Number of Regions")
+
+# Mosaic plot for Flat Number Regions vs Saibo Area
+mosaicplot(table_flat, color = TRUE,
+           main = "Mosaic Plot: Saibo Area vs Flat Number of Regions")
+
+
+
+
+
+
+
 
 
 
