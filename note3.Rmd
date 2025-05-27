@@ -162,6 +162,7 @@ custom_colors <- c(
   "White" = "#F9F6EE"
 )
 
+##round matched donor data for nacre lip colour and pearl colour
 # Step 4: Plot with custom colors
 ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round, 
                         fill = pearl_colour_grouped)) +
@@ -178,10 +179,97 @@ ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round,
 
 
 
+```{r}
+
+##flat side matched donor data for nacre lip colour and pearl colour
+
+ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Flat, 
+                        fill = pearl_colour_grouped)) +
+  geom_bar(position = "fill") +
+  labs(title = "Grouped Pearl Colour by Donor Flat Nacre Lip Colour",
+       x = "Donor Nacre Lip Colour (Flat Side)",
+       y = "Proportion",
+       fill = "Grouped Pearl Colour") +
+  scale_fill_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+```{r}
+#contingency table stat test
+table_colour <- table(data_colour$Matched_Donor_Data_Nacre_lip_colour_Round,
+                      data_colour$pearl_colour_grouped)
+
+#Chi-squared test of independence — a standard method for testing associations between two categorical variables.
+
+chisq_test_result <- chisq.test(table_colour)
+chisq_test_result
+
+
+#p-value < 0.05: There is a statistically significant association between donor nacre lip colour and grouped pearl colour.
+
+  
+#check assumptions, expected counts, assume expected cell counts more than or equals to 5. to check:
+chisq_test_result$expected
+
+
 ```
 
 
 
+```{r}
+# Create contingency table
+colour_table <- table(data_colour$Matched_Donor_Data_Nacre_lip_colour_Flat, 
+                      data_colour$pearl_colour_grouped)
+
+# Chi-squared test
+chisq_test_result <- chisq.test(colour_table)
+
+# Output result
+chisq_test_result
+
+ chisq.test(colour_table, simulate.p.value = TRUE, B = 10000)
+
+
+
+
+
+```
+
+
+####HOST
+```{r}
+
+
+
+ggplot(data_colour, aes(x = First_Op_Data_Nacre_Lip_Colour_Round, 
+                        fill = pearl_colour_grouped)) +
+  geom_bar(position = "fill") +
+  labs(title = "Grouped Pearl Colour by Host Nacre Lip Colour (Round)",
+       x = "Host Nacre Lip Colour (Round Side)",
+       y = "Proportion",
+       fill = "Grouped Pearl Colour") +
+  scale_fill_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+ggplot(data_colour, aes(x = First_Op_Data_Nacre_Lip_Colour_Flat
+, 
+                        fill = pearl_colour_grouped)) +
+  geom_bar(position = "fill") +
+  labs(title = "Grouped Pearl Colour by Host Nacre Lip Colour (Flat)",
+       x = "Host Nacre Lip Colour (Flat Side)",
+       y = "Proportion",
+       fill = "Grouped Pearl Colour") +
+  scale_fill_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
 
 
 
