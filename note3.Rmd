@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r}
+
 # Load necessary libraries
 library(tidyverse)
 library(MASS)
@@ -84,13 +84,12 @@ chisq.test(chisq_table)
 
 
 
-```
 
 
 
 
 
-```{r}
+
 
 
 
@@ -126,11 +125,7 @@ ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round,
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
- 
-```
 
-
-```{r}
 
 
 library(dplyr)
@@ -175,11 +170,10 @@ ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round,
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-```
 
 
 
-```{r}
+
 
 ##flat side matched donor data for nacre lip colour and pearl colour
 
@@ -194,10 +188,9 @@ ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Flat,
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-```
 
 
-```{r}
+
 #contingency table stat test
 table_colour <- table(data_colour$Matched_Donor_Data_Nacre_lip_colour_Round,
                       data_colour$pearl_colour_grouped)
@@ -215,11 +208,11 @@ chisq_test_result
 chisq_test_result$expected
 
 
-```
 
 
 
-```{r}
+
+
 # Create contingency table
 colour_table <- table(data_colour$Matched_Donor_Data_Nacre_lip_colour_Flat, 
                       data_colour$pearl_colour_grouped)
@@ -236,11 +229,10 @@ chisq_test_result
 
 
 
-```
 
 
 ####HOST
-```{r}
+
 
 
 
@@ -269,7 +261,243 @@ ggplot(data_colour, aes(x = First_Op_Data_Nacre_Lip_Colour_Flat
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-```
+
+
+# Contingency table for round side
+table_round <- table(data_colour$First_Op_Data_Nacre_Lip_Colour_Round,
+                     data_colour$pearl_colour_grouped)
+
+# Chi-squared test
+chisq.test(table_round)
+
+# If warning for small expected counts, use:
+chisq.test(table_round, simulate.p.value = TRUE, B = 10000)
+
+
+# Contingency table for flat side
+table_flat <- table(data_colour$First_Op_Data_Nacre_Lip_Colour_Flat,
+                    data_colour$pearl_colour_grouped)
+
+# Chi-squared test
+chisq.test(table_flat)
+
+# If warning for small expected counts, use:
+chisq.test(table_flat, simulate.p.value = TRUE, B = 10000)
+
+
+
+
+
+
+
+
+
+
+# simple harvest date (2) vs size
+
+# Load necessary packages
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+# Convert Pearl_Harvest_Data_Date to Date format (if not already)
+data$Pearl_Harvest_Data_Date <- dmy(data$Pearl_Harvest_Data_Date)  # Use mdy() if date is in mm-dd-yy format
+
+# Filter data between 1 Oct 2022 and 1 Mar 2023
+filtered_df <- data %>%
+  filter(Pearl_Harvest_Data_Date >= as.Date("2022-10-01") &
+         Pearl_Harvest_Data_Date <= as.Date("2023-03-01"))
+
+# OPTIONAL: View summary of filtered data
+summary(filtered_df[, c("Pearl_Harvest_Data_DVH_mm", 
+                        "Pearl_Harvest_Data_APW_mm", 
+                        "Pearl_Harvest_Data_Shell_Depth_mm", 
+                        "Pearl_Harvest_Data_Shell_Weight_g")])
+
+# Plot each variable vs harvest date
+ggplot(filtered_df, aes(x = Pearl_Harvest_Data_Date)) +
+  geom_point(aes(y = Pearl_Harvest_Data_DVH_mm), color = "blue", alpha = 0.5) +
+  geom_smooth(aes(y = Pearl_Harvest_Data_DVH_mm), method = "loess", se = FALSE, color = "blue") +
+  labs(title = "DVH vs Harvest Date", y = "DVH (mm)", x = "Harvest Date")
+
+ggplot(filtered_df, aes(x = Pearl_Harvest_Data_Date)) +
+  geom_point(aes(y = Pearl_Harvest_Data_APW_mm), color = "green", alpha = 0.5) +
+  geom_smooth(aes(y = Pearl_Harvest_Data_APW_mm), method = "loess", se = FALSE, color = "green") +
+  labs(title = "APW vs Harvest Date", y = "APW (mm)", x = "Harvest Date")
+
+ggplot(filtered_df, aes(x = Pearl_Harvest_Data_Date)) +
+  geom_point(aes(y = Pearl_Harvest_Data_Shell_Depth_mm), color = "orange", alpha = 0.5) +
+  geom_smooth(aes(y = Pearl_Harvest_Data_Shell_Depth_mm), method = "loess", se = FALSE, color = "orange") +
+  labs(title = "Shell Depth vs Harvest Date", y = "Shell Depth (mm)", x = "Harvest Date")
+
+ggplot(filtered_df, aes(x = Pearl_Harvest_Data_Date)) +
+  geom_point(aes(y = Pearl_Harvest_Data_Shell_Weight_g), color = "red", alpha = 0.5) +
+  geom_smooth(aes(y = Pearl_Harvest_Data_Shell_Weight_g), method = "loess", se = FALSE, color = "red") +
+  labs(title = "Shell Weight vs Harvest Date", y = "Shell Weight (g)", x = "Harvest Date")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Convert date column to Date format
+
+df <- na.omit(PearlOperationalData) 
+
+df$Pearl_Harvest_Data_Date <- as.Date(df$Pearl_Harvest_Data_Date, format = "%d-%m-%y")
+
+
+start_date <- as.Date("01-10-22", format = "%d-%m-%y")
+end_date <- as.Date("01-03-23", format = "%d-%m-%y")
+
+filtered_df <- df[df$Pearl_Harvest_Data_Date >= start_date & df$Pearl_Harvest_Data_Date <= end_date, ]
+
+library(ggplot2)
+
+ggplot(filtered_df, aes(x = Pearl_Harvest_Data_Date, y = Pearl_Harvest_Data_DVH_mm)) +
+  geom_point(color = "steelblue") +
+  geom_smooth(method = "loess", se = TRUE, color = "darkred") +
+  labs(title = "Pearl Diameter (DVH) Over Harvest Dates",
+       x = "Harvest Date",
+       y = "Pearl Diameter (DVH, mm)") +
+  theme_minimal()
+
+
+
+
+
+
+
+
+
+
+
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+
+# Convert dates to Date format
+df$Pearl_Harvest_Data_Date <- dmy(df$Pearl_Harvest_Data_Date)
+
+# Basic summary statistics
+summary(df$Pearl_Harvest_Data_DVH_mm)
+
+# Plot DVH over time
+ggplot(df, aes(x = Pearl_Harvest_Data_Date, y = Pearl_Harvest_Data_DVH_mm)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "DVH Over Time",
+       x = "Harvest Date",
+       y = "DVH (mm)") +
+  theme_minimal()
+
+# Monthly averages
+df %>%
+  mutate(Month = floor_date(Pearl_Harvest_Data_Date, "month")) %>%
+  group_by(Month) %>%
+  summarise(Avg_DVH = mean(Pearl_Harvest_Data_DVH_mm, na.rm = TRUE)) %>%
+  ggplot(aes(x = Month, y = Avg_DVH)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Monthly Average DVH",
+       x = "Month",
+       y = "Average DVH (mm)") +
+  theme_minimal()
+
+# Check for correlation between harvest date and DVH
+cor.test(as.numeric(df$Pearl_Harvest_Data_Date), 
+         df$Pearl_Harvest_Data_DVH_mm, 
+         use = "complete.obs")
+
+# Boxplot by year
+df %>%
+  mutate(Year = year(Pearl_Harvest_Data_Date)) %>%
+  ggplot(aes(x = factor(Year), y = Pearl_Harvest_Data_DVH_mm)) +
+  geom_boxplot() +
+  labs(title = "DVH Distribution by Year",
+       x = "Year",
+       y = "DVH (mm)") +
+  theme_minimal()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+pearl_df <- PearlOperationalData
+
+# Convert dates to Date format
+pearl_df$Pearl_Harvest_Data_Date <- dmy(pearl_df$Pearl_Harvest_Data_Date)
+
+# Basic summary statistics
+summary(pearl_df$Pearl_Harvest_Data_APW_mm)
+
+# Plot DVH over time
+ggplot(pearl_df, aes(x = Pearl_Harvest_Data_Date, y = Pearl_Harvest_Data_APW_mm)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "APW Over Time",
+       x = "Harvest Date",
+       y = "APW (mm)") +
+  theme_minimal()
+
+# Monthly averages
+pearl_df %>%
+  mutate(Month = floor_date(Pearl_Harvest_Data_APW_mm, "month")) %>%
+  group_by(Month) %>%
+  summarise(Avg_APW = mean(Pearl_Harvest_Data_APW_mm, na.rm = TRUE)) %>%
+  ggplot(aes(x = Month, y = Avg_APW)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Monthly Average APW",
+       x = "Month",
+       y = "Average APW (mm)") +
+  theme_minimal()
+
+# Check for correlation between harvest date and DVH
+cor.test(as.numeric(pearl_df$Pearl_Harvest_Data_Date), 
+         pearl_df$Pearl_Harvest_Data_APW_mm, 
+         use = "complete.obs")
+
+# Boxplot by year
+df %>%
+  mutate(Year = year(Pearl_Harvest_Data_Date)) %>%
+  ggplot(aes(x = factor(Year), y = Pearl_Harvest_Data_APW_mm)) +
+  geom_boxplot() +
+  labs(title = "APW Distribution by Year",
+       x = "Year",
+       y = "APW (mm)") +
+  theme_minimal()
+
 
 
 
