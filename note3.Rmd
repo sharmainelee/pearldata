@@ -1,0 +1,189 @@
+---
+title: "note3"
+output: html_document
+date: "2025-05-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(MASS)
+library(emmeans)
+library(ggplot2)
+
+data <- PearlOperationalData
+
+# Ensure ordered factor for pearl grade (highest to lowest)
+data$Pearl_Grading_Data_Grade <- factor(
+  data$Pearl_Grading_Data_Grade,
+  levels = c("A1+", "A1", "A2+", "A2", "A3+", "A3", "A", 
+             "B1+", "B1", "B2+", "B2"),
+  ordered = TRUE
+)
+
+# Filter data for complete cases
+grade_model_data <- data %>%
+  filter(!is.na(Pearl_Grading_Data_Grade), !is.na(First_Op_Data_Saibo_Area))
+
+
+ggplot(grade_model_data, aes(x = First_Op_Data_Saibo_Area, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  scale_fill_brewer(palette = "Spectral") +
+  labs(title = "Proportion of Pearl Grades by Saibo Area",
+       x = "Saibo Donor Area",
+       y = "Proportion",
+       fill = "Pearl Grade") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+
+# Fit ordinal logistic regression model
+model_grade <- polr(Pearl_Grading_Data_Grade ~ First_Op_Data_Saibo_Area, 
+                    data = grade_model_data, 
+                    Hess = TRUE)
+
+# Model summary with p-values
+summary_table <- coef(summary(model_grade))
+p_values <- pnorm(abs(summary_table[, "t value"]), lower.tail = FALSE) * 2
+summary_table <- cbind(summary_table, "p value" = round(p_values, 4))
+print(summary_table)
+
+
+# Compare predicted grade probabilities across saibo areas
+emmeans(model_grade, pairwise ~ First_Op_Data_Saibo_Area, type = "response")
+
+
+####
+
+#ugly
+ggplot(data, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round, 
+                      fill = Pearl_Grading_Data_Colour)) +
+  geom_bar(position = "fill") +
+  labs(title = "Pearl Colour by Donor Round Nacre Lip Colour",
+       x = "Donor Nacre Lip Colour (Round Side)",
+       y = "Proportion",
+       fill = "Pearl Colour") +
+  scale_fill_brewer(palette = "Spectral") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Create contingency table
+chisq_table <- table(df_colour$Matched_Donor_Data_Nacre_lip_colour_Round, 
+                     df_colour$Pearl_Grading_Data_Colour)
+
+# Perform chi-squared test
+chisq.test(chisq_table)
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r}
+
+
+
+
+library(dplyr)
+library(ggplot2)
+
+# Step 1: Recode and filter unwanted colours
+data_colour <- data %>%
+  mutate(pearl_colour_grouped = case_when(
+    Pearl_Grading_Data_Colour %in% c("White", "White Silver", "White Gold", "White Pink", "White Cream") ~ "White",
+    Pearl_Grading_Data_Colour %in% c("Silver", "Silver Pink", "Silver White", "Silver Gold") ~ "Silver",
+    Pearl_Grading_Data_Colour %in% c("Gold", "Gold Silver","Gold White") ~ "Gold",
+    Pearl_Grading_Data_Colour %in% c("Champagne", "Light Champ") ~ "Champagne",
+    TRUE ~ Pearl_Grading_Data_Colour
+
+  )) %>%
+  filter(!Pearl_Grading_Data_Colour %in% c(NA, "No Grade", "Low Grade", "Ombre", "Green", "Pair", "Blue", "Rainbow","Peach"))
+
+# Step 2: Count and display grouped colours
+count(data_colour, pearl_colour_grouped, sort = TRUE)
+
+# Step 3: Plot colour group proportions by donor nacre lip colour (round side)
+ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round, 
+                        fill = pearl_colour_grouped)) +
+  geom_bar(position = "fill") +
+  labs(title = "Grouped Pearl Colour by Donor Round Nacre Lip Colour",
+       x = "Donor Nacre Lip Colour (Round Side)",
+       y = "Proportion",
+       fill = "Grouped Pearl Colour") +
+  scale_fill_brewer(palette = "Spectral") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+ 
+```
+
+
+```{r}
+
+
+library(dplyr)
+library(ggplot2)
+
+# Step 1: Recode and filter unwanted colours
+data_colour <- data %>%
+  mutate(pearl_colour_grouped = case_when(
+    Pearl_Grading_Data_Colour %in% c("White", "White Silver", "White Gold", "White Pink", "White Cream") ~ "White",
+    Pearl_Grading_Data_Colour %in% c("Silver", "Silver Pink", "Silver White", "Silver Gold") ~ "Silver",
+    Pearl_Grading_Data_Colour %in% c("Gold", "Gold Silver", "Gold White") ~ "Gold",
+    Pearl_Grading_Data_Colour %in% c("Champagne", "Light Champ") ~ "Champagne",
+    Pearl_Grading_Data_Colour == "Cream" ~ "Cream",
+    TRUE ~ Pearl_Grading_Data_Colour
+  )) %>%
+  filter(!Pearl_Grading_Data_Colour %in% c(
+    NA, "No Grade", "Low Grade", "Ombre", "Green", "Pair", "Blue", "Rainbow", "Peach"
+  ))
+
+# Step 2: Count and display grouped colours
+count(data_colour, pearl_colour_grouped, sort = TRUE)
+
+# Step 3: Define custom color palette
+custom_colors <- c(
+  "Champagne" = "#F7E7CE",
+  "Gold" = "#FFD700",
+  "Cream" = "#FFFDD0",
+  "Silver" = "#C0C0C0",
+  "White" = "#F9F6EE"
+)
+
+# Step 4: Plot with custom colors
+ggplot(data_colour, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round, 
+                        fill = pearl_colour_grouped)) +
+  geom_bar(position = "fill") +
+  labs(title = "Grouped Pearl Colour by Donor Round Nacre Lip Colour",
+       x = "Donor Nacre Lip Colour (Round Side)",
+       y = "Proportion",
+       fill = "Grouped Pearl Colour") +
+  scale_fill_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+```
+
+
+
+
+
+
+
+
