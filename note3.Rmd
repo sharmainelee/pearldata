@@ -447,21 +447,22 @@ df %>%
 
 
 
-
 # Load necessary libraries
 library(dplyr)
 library(ggplot2)
 library(lubridate)
+library(scales)
 
+# Load your dataset
 pearl_df <- PearlOperationalData
 
-# Convert dates to Date format
+# Convert harvest date to Date class (if in "dd-mm-yy" format)
 pearl_df$Pearl_Harvest_Data_Date <- dmy(pearl_df$Pearl_Harvest_Data_Date)
 
 # Basic summary statistics
 summary(pearl_df$Pearl_Harvest_Data_APW_mm)
 
-# Plot DVH over time
+# Plot APW over time
 ggplot(pearl_df, aes(x = Pearl_Harvest_Data_Date, y = Pearl_Harvest_Data_APW_mm)) +
   geom_point(alpha = 0.6) +
   geom_smooth(method = "loess", se = FALSE, color = "blue") +
@@ -472,34 +473,309 @@ ggplot(pearl_df, aes(x = Pearl_Harvest_Data_Date, y = Pearl_Harvest_Data_APW_mm)
 
 # Monthly averages
 pearl_df %>%
-  mutate(Month = floor_date(Pearl_Harvest_Data_APW_mm, "month")) %>%
+  mutate(Month = floor_date(Pearl_Harvest_Data_Date, "month")) %>%
   group_by(Month) %>%
   summarise(Avg_APW = mean(Pearl_Harvest_Data_APW_mm, na.rm = TRUE)) %>%
   ggplot(aes(x = Month, y = Avg_APW)) +
-  geom_line() +
-  geom_point() +
+  geom_line(color = "darkgreen") +
+  geom_point(color = "darkgreen") +
+  scale_x_date(date_labels = "%b\n%Y", date_breaks = "1 month") +
   labs(title = "Monthly Average APW",
        x = "Month",
        y = "Average APW (mm)") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Check for correlation between harvest date and DVH
+# Correlation test: Date (numeric) vs APW
 cor.test(as.numeric(pearl_df$Pearl_Harvest_Data_Date), 
          pearl_df$Pearl_Harvest_Data_APW_mm, 
          use = "complete.obs")
 
 # Boxplot by year
-df %>%
+pearl_df %>%
   mutate(Year = year(Pearl_Harvest_Data_Date)) %>%
   ggplot(aes(x = factor(Year), y = Pearl_Harvest_Data_APW_mm)) +
-  geom_boxplot() +
+  geom_boxplot(fill = "skyblue") +
   labs(title = "APW Distribution by Year",
        x = "Year",
        y = "APW (mm)") +
   theme_minimal()
 
+  
+  
+  
+  
+  
+  
+  
+  
+  # Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+pearl_df <- PearlOperationalData  # make sure your data is loaded here
+
+# Convert dates to Date format
+pearl_df$Pearl_Harvest_Data_Date <- dmy(pearl_df$Pearl_Harvest_Data_Date)
+
+# Basic summary statistics for shell depth
+summary(pearl_df$Pearl_Harvest_Data_Shell_Depth_mm)
+
+# Plot shell depth over time
+ggplot(pearl_df, aes(x = Pearl_Harvest_Data_Date, y = Pearl_Harvest_Data_Shell_Depth_mm)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "Shell Depth Over Time",
+       x = "Harvest Date",
+       y = "Shell Depth (mm)") +
+  theme_minimal()
+
+# Monthly averages of shell depth
+pearl_df %>%
+  mutate(Month = floor_date(Pearl_Harvest_Data_Date, "month")) %>%
+  group_by(Month) %>%
+  summarise(Avg_Shell_Depth = mean(Pearl_Harvest_Data_Shell_Depth_mm, na.rm = TRUE)) %>%
+  ggplot(aes(x = Month, y = Avg_Shell_Depth)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Monthly Average Shell Depth",
+       x = "Month",
+       y = "Average Shell Depth (mm)") +
+  theme_minimal()
+
+# Correlation between harvest date and shell depth
+cor.test(as.numeric(pearl_df$Pearl_Harvest_Data_Date), 
+         pearl_df$Pearl_Harvest_Data_Shell_Depth_mm, 
+         use = "complete.obs")
+
+# Boxplot of shell depth by year
+pearl_df %>%
+  mutate(Year = year(Pearl_Harvest_Data_Date)) %>%
+  ggplot(aes(x = factor(Year), y = Pearl_Harvest_Data_Shell_Depth_mm)) +
+  geom_boxplot() +
+  labs(title = "Shell Depth Distribution by Year",
+       x = "Year",
+       y = "Shell Depth (mm)") +
+  theme_minimal()
 
 
 
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+pearl_df <- PearlOperationalData  # your data frame
+
+# Convert dates to Date format
+pearl_df$Pearl_Harvest_Data_Date <- dmy(pearl_df$Pearl_Harvest_Data_Date)
+
+# Basic summary statistics for shell weight
+summary(pearl_df$Pearl_Harvest_Data_Shell_Weight_g)
+
+# Plot shell weight over time
+ggplot(pearl_df, aes(x = Pearl_Harvest_Data_Date, y = Pearl_Harvest_Data_Shell_Weight_g)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(title = "Shell Weight Over Time",
+       x = "Harvest Date",
+       y = "Shell Weight (g)") +
+  theme_minimal()
+
+# Monthly averages of shell weight
+pearl_df %>%
+  mutate(Month = floor_date(Pearl_Harvest_Data_Date, "month")) %>%
+  group_by(Month) %>%
+  summarise(Avg_Shell_Weight = mean(Pearl_Harvest_Data_Shell_Weight_g, na.rm = TRUE)) %>%
+  ggplot(aes(x = Month, y = Avg_Shell_Weight)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Monthly Average Shell Weight",
+       x = "Month",
+       y = "Average Shell Weight (g)") +
+  theme_minimal()
+
+# Correlation between harvest date and shell weight
+cor.test(as.numeric(pearl_df$Pearl_Harvest_Data_Date), 
+         pearl_df$Pearl_Harvest_Data_Shell_Weight_g, 
+         use = "complete.obs")
+
+# Boxplot of shell weight by year
+pearl_df %>%
+  mutate(Year = year(Pearl_Harvest_Data_Date)) %>%
+  ggplot(aes(x = factor(Year), y = Pearl_Harvest_Data_Shell_Weight_g)) +
+  geom_boxplot() +
+  labs(title = "Shell Weight Distribution by Year",
+       x = "Year",
+       y = "Shell Weight (g)") +
+  theme_minimal()
+
+
+
+
+
+
+
+# Remove rows with NA in either column
+clean_df <- pearl_df %>%
+  filter(!is.na(First_Op_Data_Saibo_Area), !is.na(Pearl_Grading_Data_Grade))
+
+
+# Convert Pearl Grade to ordered factor
+pearl_df$Pearl_Grading_Data_Grade <- factor(pearl_df$Pearl_Grading_Data_Grade,
+                                             levels = c("A1+", "A1", "A2+", "A2", "A3+", "A3",
+                                                        "A", "B1+", "B1", "B2+", "B2", "LG"),
+                                             ordered = TRUE)
+
+# Summary stats
+clean_df %>%
+  group_by(Pearl_Grading_Data_Grade) %>%
+  summarise(mean_saibo = mean(First_Op_Data_Saibo_Area),
+            sd_saibo = sd(First_Op_Data_Saibo_Area),
+            n = n())
+
+# Boxplot
+ggplot(clean_df, aes(x = Pearl_Grading_Data_Grade, y = First_Op_Data_Saibo_Area)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Saibo Area by Pearl Grade (No NA)",
+       x = "Pearl Grade",
+       y = "Saibo Area (mm²)") +
+  theme_minimal()
+  
+  library(MASS)
+
+# Model using cleaned data
+model <- polr(Pearl_Grading_Data_Grade ~ First_Op_Data_Saibo_Area, data = clean_df, Hess = TRUE)
+summary(model)
+
+# p-values
+ctable <- coef(summary(model))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+ctable <- cbind(ctable, "p value" = p)
+print(ctable)
+
+ggplot(clean_df, aes(x = Pearl_Grading_Data_Grade, y = First_Op_Data_Saibo_Area)) +
+  geom_boxplot(outlier.shape = NA, fill = "#cce5ff") +
+  geom_jitter(width = 0.2, alpha = 0.3, color = "#0073e6") +
+  labs(title = "Saibo Area vs Pearl Grade",
+       x = "Pearl Grade",
+       y = "Saibo Area ") +
+  theme_minimal()
+
+
+###Stacked Bar Plot (Proportions)
+
+ggplot(clean_df, aes(x = First_Op_Data_Saibo_Area, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Proportion of Pearl Grades by Saibo Area",
+       x = "Saibo Area Category",
+       y = "Proportion",
+       fill = "Pearl Grade") +
+  theme_minimal()
+
+ggplot(clean_df, aes(x = First_Op_Data_Saibo_Area, fill = Pearl_Grading_Data_Grade)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Pearl Grade Count by Saibo Area",
+       x = "Saibo Area Category",
+       y = "Count",
+       fill = "Pearl Grade") +
+  theme_minimal()
+
+# Create contingency table
+tbl <- table(clean_df$First_Op_Data_Saibo_Area, clean_df$Pearl_Grading_Data_Grade)
+
+# Run Chi-squared test
+chisq.test(tbl)
+
+
+
+
+
+# Ensure Pearl_Grading_Data_Grade is ordered
+clean_df$Pearl_Grading_Data_Grade <- factor(clean_df$Pearl_Grading_Data_Grade,
+    levels = c("A1+", "A1", "A2+", "A2", "A3+", "A3", "A", 
+               "B1+", "B1", "B2+", "B2", "LG"),
+    ordered = TRUE)
+
+# Load library
+library(MASS)
+
+# Run ordinal logistic regression
+model <- polr(Pearl_Grading_Data_Grade ~ First_Op_Data_Saibo_Area, data = clean_df, Hess = TRUE)
+summary(model)
+
+# Get p-values
+ctable <- coef(summary(model))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+cbind(ctable, "p value" = p)
+
+
+
+############ 29 May 2025 
+
+dat <- read.csv("PearlOperationalData.csv")  # put the name of your own file here
+
+
+
+dat <- PearlOperationalData
+
+
+# remove the oysters with no pearls
+
+z <- which(dat$Pearl_Grading_Data_Colour=="")
+dat <- dat[-z,]
+
+
+# Find the indexes of pearls with gold colour
+z <- which(dat$Pearl_Grading_Data_Colour == "Gold")  # Colour is the name of the column in my file. Replace the name if different in your file
+
+Gold <- rep(0,length(dat$Pearl_Grading_Data_Colour)) # create a column of 0's 
+
+Gold[z] <- 1 
+
+dat <- cbind(dat,Gold)
+
+model <- glm(Gold~First_Op_Data_Saibo_No,data=dat,family=binomial)
+
+summary(model)
+
+
+### anova(lm(Gold~First_Op_Data_Saibo_No,data=dat)) usually works, but not always reliable - traditional anova
+
+
+
+
+#works
+# Load your data
+dat <- PearlOperationalData
+
+# Remove rows where pearl colour data is missing or blank
+dat <- dat[dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create a binary variable: 1 if colour is Gold, 0 otherwise
+dat$Gold <- ifelse(dat$Pearl_Grading_Data_Colour == "Gold", 1, 0)
+
+# Fit a logistic regression model to predict likelihood of Gold pearls based on saibo number
+model <- glm(Gold ~ First_Op_Data_Saibo_No, data = dat, family = binomial)
+
+# Show model summary
+summary(model)
+
+
+# Load necessary package
+library(ggplot2)
+
+# Plot with logistic regression curve
+ggplot(dat, aes(x = First_Op_Data_Saibo_No, y = Gold)) +
+  geom_jitter(height = 0.05, width = 0.2, alpha = 0.3, color = "darkgrey") +  # Show individual data points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE, color = "goldenrod", fill = "gold", alpha = 0.2) +  # Logistic regression curve
+  labs(
+    title = "Probability of Gold Pearl by Saibo Number",
+    x = "Number of Saibo Pieces",
+    y = "Probability of Gold Pearl"
+  ) +
+  theme_minimal(base_size = 14)
 
 
