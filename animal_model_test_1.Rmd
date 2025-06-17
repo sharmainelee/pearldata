@@ -1,0 +1,185 @@
+---
+title: "17june"
+output: html_document
+date: "2025-06-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+To construct animal models for your pearl oyster traits using ASReml in R (as in your lizard example), you'll need:
+
+Your phenotypic dataset (dat)
+
+A pedigree file with columns for ID, Sire, and Dam
+
+The inverse of the additive relationship matrix (A⁻¹)
+
+Here's a generalised structure you can adapt for each significant GLM trait, beginning with an example for the binary Gold trait using Pearl_Harvest_Data_DVH_mm.
+
+
+```{r}
+# Clear workspace and load libraries
+rm(list = ls())
+library(asreml)
+library(nadiv)
+
+# Read your phenotypic and pedigree data
+dat <- read.csv("your_data.csv")  # Replace with your file
+ped <- dat[, c("Animal_ID", "Sire_ID", "Dam_ID")]  # Match your column names
+
+# Convert columns to factors
+dat$Animal_ID <- as.factor(dat$Animal_ID)
+ped <- data.frame(
+  id = as.factor(ped[, 1]),
+  sire = as.factor(ped[, 2]),
+  dam = as.factor(ped[, 3])
+)
+
+# Build inverse relationship matrix
+ainv <- ainverse(ped)
+
+# Example: Animal model for Gold ~ Pearl_Harvest_Data_DVH_mm
+mod.gold <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm,
+  random = ~ vm(Animal_ID, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(),
+  data = dat
+)
+mod.gold <- update.asreml(mod.gold)
+
+# View results
+summary(mod.gold)$varcomp
+vpredict(mod.gold, h2 ~ V1 / (V1 + V2))  # Heritability estimate
+
+```
+
+
+ Repeat for Other Traits
+Just change the fixed effect and the trait. Example for Silver:
+
+```{r}
+mod.silver <- asreml(
+  fixed = Silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(Animal_ID, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(),
+  data = dat
+)
+mod.silver <- update.asreml(mod.silver)
+
+```
+
+Same pattern for White, Cream, Champ—always use the relevant fixed predictors from your GLM results.
+
+
+
+
+
+
+
+
+
+
+#######################
+
+1. Load libraries and Data
+
+```{r}
+library(readxl)
+library(nadiv)
+library(asreml)
+library(readr)
+
+# Load pedigree data
+ped_host <- read_csv("~/pearl_project/animalmodel/host.csv")
+View(ped_host)
+
+ped_donor <- read_csv("~/pearl_project/animalmodel/saibo.csv")
+View(ped_donor)
+
+# Load phenotypic data
+PearlOperationalData <- read_csv("~/pearl_project/PearlOperationalData.csv")
+View(PearlOperationalData)
+
+dat <- PearlOperationalData
+
+```
+
+
+2. Format Pedigree and Phenotypic Data
+
+```{r}
+# Format pedigree for host
+ped_host <- data.frame(
+  id = as.factor(ped_host$Shell_Metrics_GenotypeID_DART),
+  sire = as.factor(ped_host$Sire),
+  dam = as.factor(ped_host$Dam)
+)
+
+# Format pedigree for donor
+# Remove the "18-03_Saibo_" prefix from IDs
+ped_donor$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", ped_donor$Matched_Donor_Data_Saibo_No)
+
+ped_donor <- data.frame(
+  id = as.factor(ped_donor$Matched_Donor_Data_Saibo_No),
+  sire = as.factor(ped_donor$Sire),
+  dam = as.factor(ped_donor$Dam)
+)
+
+# Format phenotypic data
+dat$Shell_Metrics_GenotypeID_DART <- as.factor(dat$Shell_Metrics_GenotypeID_DART)  # Host IDs
+
+# Match the donor ID formatting in phenotype data to the pedigree
+dat$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", dat$Matched_Donor_Data_Saibo_No)
+dat$Matched_Donor_Data_Saibo_No <- as.factor(dat$Matched_Donor_Data_Saibo_No)
+
+```
+
+
+
+3. Generate A inverse Matrix 
+```{r}
+ainv_host <- ainverse(ped_host)
+
+
+ainv_donor <- ainverse(ped_donor)
+
+```
+
+
+4.    Prepare binary trait (Gold)
+
+Made sure Gold is coded as 0/1
+
+```{r}
+dat$Gold <- as.integer(dat$Pearl_Grading_Data_Colour == "Gold")
+
+```
+
+
+5. Fit animal model: Gold ~ DVH
+
+```{r}
+mod.gold <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm,
+  random = ~ vm(Shell_Metrics_GenotypeID_DART, ainv_host),
+  residual = ~ idv(units),
+  family = asr_binomial(),
+  data = dat
+)
+
+mod.gold <- update.asreml(mod.gold)
+summary(mod.gold)$varcomp
+vpredict(mod.gold, h2 ~ V1 / (V1 + V2))  # Heritability estimate
+
+```
+
+
+
+
