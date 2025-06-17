@@ -182,4 +182,222 @@ vpredict(mod.gold, h2 ~ V1 / (V1 + V2))  # Heritability estimate
 
 
 
+########################################
+
+
+
+
+```{r}
+# 1. Load Libraries
+library(readxl)
+library(nadiv)
+library(asreml)
+library(readr)
+
+# 2. Load Data ------------------------------------------------------
+
+# Load host pedigree
+ped_host <- read_csv("~/pearl_project/animalmodel/host.csv")
+# Load donor pedigree
+ped_donor <- read_csv("~/pearl_project/animalmodel/saibo.csv")
+# Load phenotype data
+PearlOperationalData <- read_csv("~/pearl_project/PearlOperationalData.csv")
+
+# Assign to working variable
+dat <- PearlOperationalData
+
+# 3. Format Pedigrees ------------------------------------------------------
+
+# Format host pedigree
+ped_host <- data.frame(
+  id = as.factor(ped_host$Shell_Metrics_GenotypeID_DART),
+  sire = as.factor(ped_host$Sire),
+  dam = as.factor(ped_host$Dam)
+)
+
+# Format donor pedigree (remove prefix)
+ped_donor$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", ped_donor$Matched_Donor_Data_Saibo_No)
+ped_donor <- data.frame(
+  id = as.factor(ped_donor$Matched_Donor_Data_Saibo_No),
+  sire = as.factor(ped_donor$Sire),
+  dam = as.factor(ped_donor$Dam)
+)
+
+# 4. Format Phenotypic Data -----------------------------------------------
+
+# Format host and donor IDs in phenotypic data
+dat$Shell_Metrics_GenotypeID_DART <- as.factor(dat$Shell_Metrics_GenotypeID_DART)
+dat$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", dat$Matched_Donor_Data_Saibo_No)
+dat$Matched_Donor_Data_Saibo_No <- as.factor(dat$Matched_Donor_Data_Saibo_No)
+
+# Binary trait (Gold)
+dat$Gold <- as.integer(dat$Pearl_Grading_Data_Colour == "Gold")
+
+# 5. Clean and Subset Data -----------------------------------------------
+
+# Remove NAs in response or predictor
+dat <- dat[!is.na(dat$Gold) & !is.na(dat$Pearl_Harvest_Data_DVH_mm), ]
+
+# Keep only individuals in phenotype that are in the pedigree
+dat <- dat[dat$Shell_Metrics_GenotypeID_DART %in% ped_host$id, ]
+
+# Double-check factor format
+dat$Shell_Metrics_GenotypeID_DART <- factor(dat$Shell_Metrics_GenotypeID_DART)
+
+# 6. Generate Inverse A Matrices -----------------------------------------
+
+ainv_host <- ainverse(ped_host)
+ainv_donor <- ainverse(ped_donor)  # Optional: for future dual random effect models
+
+# 7. Fit Animal Model (Gold ~ DVH) ---------------------------------------
+
+mod.gold <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm,
+  random = ~ vm(Shell_Metrics_GenotypeID_DART, ainv_host),
+  residual = ~ idv(units),
+  family = asr_binomial(),
+  data = dat
+)
+
+# Update model (for convergence)
+mod.gold <- update.asreml(mod.gold)
+
+# 8. Output Results ------------------------------------------------------
+
+# Variance components
+summary(mod.gold)$varcomp
+
+# Heritability estimate
+vpredict(mod.gold, h2 ~ V1 / (V1 + V2))
+
+```
+
+
+
+
+
+######################################################################
+
+
+
+```{r}
+# 1. Load Libraries ------------------------------------------------------
+library(readxl)
+library(nadiv)
+library(asreml)
+library(readr)
+
+# 2. Load Data -----------------------------------------------------------
+
+# Load host pedigree
+ped_host <- read_csv("~/pearl_project/animalmodel/host.csv")
+
+# Load donor pedigree
+ped_donor <- read_csv("~/pearl_project/animalmodel/saibo.csv")
+
+# Load phenotype data
+PearlOperationalData <- read_csv("~/pearl_project/PearlOperationalData.csv")
+
+# Assign to working variable
+dat <- PearlOperationalData
+
+
+# 3. Format Pedigrees ---------------------------------------------------
+
+# Format host pedigree
+ped_host <- data.frame(
+  id   = as.factor(ped_host$Shell_Metrics_GenotypeID_DART),
+  sire = as.factor(ped_host$Sire),
+  dam  = as.factor(ped_host$Dam)
+)
+
+# Format donor pedigree (remove prefix)
+ped_donor$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", ped_donor$Matched_Donor_Data_Saibo_No)
+ped_donor <- data.frame(
+  id   = as.factor(ped_donor$Matched_Donor_Data_Saibo_No),
+  sire = as.factor(ped_donor$Sire),
+  dam  = as.factor(ped_donor$Dam)
+)
+
+
+# 4. Format Phenotypic Data ---------------------------------------------
+
+# Clean and format IDs
+dat$Shell_Metrics_GenotypeID_DART <- as.factor(dat$Shell_Metrics_GenotypeID_DART)
+dat$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", dat$Matched_Donor_Data_Saibo_No)
+dat$Matched_Donor_Data_Saibo_No <- as.factor(dat$Matched_Donor_Data_Saibo_No)
+
+# Check available levels in Pearl_Grading_Data_Colour
+cat("Unique pearl colours:\n")
+print(unique(dat$Pearl_Grading_Data_Colour))
+
+# Create binary Gold trait
+dat$Gold <- as.integer(dat$Pearl_Grading_Data_Colour == "Gold")
+
+# Check for variation in Gold trait
+cat("Gold counts:\n")
+print(table(dat$Gold, useNA = "ifany"))
+
+
+
+# 4. Format Phenotypic Data ---------------------------------------------
+
+# Clean and format IDs
+dat$Shell_Metrics_GenotypeID_DART <- as.factor(dat$Shell_Metrics_GenotypeID_DART)
+dat$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", dat$Matched_Donor_Data_Saibo_No)
+dat$Matched_Donor_Data_Saibo_No <- as.factor(dat$Matched_Donor_Data_Saibo_No)
+
+# Clean colour data and create binary Gold trait
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+
+# Check that there are 0s and 1s
+cat("Gold counts:\n")
+print(table(dat$Gold, useNA = "ifany"))
+
+
+
+# 5. Clean and Subset Data ----------------------------------------------
+
+# Remove rows with missing trait or predictor
+dat <- dat[!is.na(dat$Gold) & !is.na(dat$Pearl_Harvest_Data_DVH_mm), ]
+
+# Retain only matched individuals in pedigree
+dat <- dat[dat$Shell_Metrics_GenotypeID_DART %in% ped_host$id, ]
+dat$Shell_Metrics_GenotypeID_DART <- droplevels(dat$Shell_Metrics_GenotypeID_DART)
+
+print(table(dat$Gold, useNA = "ifany"))
+
+# 6. Generate Inverse A Matrices ----------------------------------------
+
+ainv_host <- ainverse(ped_host)
+ainv_donor <- ainverse(ped_donor)  # optional for future use
+
+
+# 7. Fit Animal Model (Gold ~ DVH) --------------------------------------
+
+mod.gold <- asreml(
+  fixed    = Gold ~ Pearl_Harvest_Data_DVH_mm,
+  random   = ~ vm(Shell_Metrics_GenotypeID_DART, ainv_host),
+  residual = ~ idv(units),
+  family   = asr_binomial(),
+  data     = dat
+)
+
+# Ensure convergence
+mod.gold <- update.asreml(mod.gold)
+
+
+# 8. Output Results ------------------------------------------------------
+
+# Print variance components
+cat("\nVariance components:\n")
+print(summary(mod.gold)$varcomp)
+
+# Estimate heritability (on link scale)
+cat("\nHeritability estimate (link scale):\n")
+print(vpredict(mod.gold, h2 ~ V1 / (V1 + V2)))
+
+```
 
