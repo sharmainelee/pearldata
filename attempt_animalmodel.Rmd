@@ -1,0 +1,288 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-06-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Pearl Oyster Animal Model Code (inspired by the Lizard heritability model)
+
+# 1. Load libraries
+library(readr)
+library(asreml)
+library(nadiv)
+
+# 2. Load data
+ped_host <- host_Copy
+ped_donor <- saibo_Copy
+dat <- PearlOperationalData
+
+# 3. Format pedigree data
+ped_host <- data.frame(
+  id = as.factor(ped_host$Shell_Metrics_GenotypeID_DART),
+  sire = as.factor(ped_host$Sire),
+  dam = as.factor(ped_host$Dam)
+)
+ped_donor$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", ped_donor$Matched_Donor_Data_Saibo_No)
+ped_donor <- data.frame(
+  id = as.factor(ped_donor$Matched_Donor_Data_Saibo_No),
+  sire = as.factor(ped_donor$Sire),
+  dam = as.factor(ped_donor$Dam)
+)
+
+# 4. Format phenotypic data
+dat$Shell_Metrics_GenotypeID_DART <- as.factor(dat$Shell_Metrics_GenotypeID_DART)
+dat$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", dat$Matched_Donor_Data_Saibo_No)
+dat$Matched_Donor_Data_Saibo_No <- as.factor(dat$Matched_Donor_Data_Saibo_No)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# 5. Create binary traits
+dat$Gold   <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White  <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream  <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ  <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 6. Inverse A matrix for host
+ainv_host <- ainverse(ped_host)
+ainv_donor <- ainverse(ped_donor)
+
+# 7. Fit animal model for Gold ~ DVH
+mod.gold <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm,
+  random = ~ vm(Shell_Metrics_GenotypeID_DART, ainv_host),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),  # Added link specification
+  data = dat[!is.na(dat$Gold) & !is.na(dat$Pearl_Harvest_Data_DVH_mm), ]
+)
+mod.gold <- update.asreml(mod.gold)
+
+# Calculate heritability on the liability scale
+# For binary traits, we need to account for the residual variance being fixed to π²/3 in logit models
+summary(mod.gold)$varcomp
+
+# Summarize the variance components
+varcomp_summary <- summary(mod.gold)$varcomp
+
+# Extract genetic variance (VG) and residual variance (VR)
+VG <- varcomp_summary["Shell_Metrics_GenotypeID_DART", "Variance"]  # Genetic variance component
+VR <- varcomp_summary["units", "Variance"]  # Residual variance component
+
+# Residual variance for binary traits (logit link) is fixed at pi^2 / 3
+residual_variance_binary <- (pi^2) / 3
+
+# Calculate heritability on the liability scale
+heritability_liability_scale <- VG / (VG + residual_variance_binary)
+
+# Print the heritability estimate
+print(paste("Heritability on the liability scale:", heritability_liability_scale))
+
+
+
+
+```
+
+
+
+#doesntwork this one- Heritability calculation on liability scale
+vpredict(mod.gold, h2 ~ V1/(V1 + (pi^2/3)))  # V1 is the additive genetic variance component
+
+
+```{r}
+# Genetic variance (VG)
+VG <- 50.49  # as per the output of varcomp for the genetic variance
+
+# Residual variance for binary traits (logit link)
+residual_variance_binary <- (pi^2) / 3
+
+# Calculate heritability on the liability scale
+heritability_liability_scale <- VG / (VG + residual_variance_binary)
+
+# Print heritability estimate
+print(paste("Heritability on the liability scale:", heritability_liability_scale))
+
+```
+
+##The heritability on the liability scale is approximately 0.93, which indicates a very high heritability for this binary trait.
+
+
+
+###################################################################################
+
+
+
+
+```{r}
+# Load libraries
+library(readr)
+library(asreml)
+library(nadiv)
+
+# 1. Load data
+ped_host <- host_Copy
+ped_donor <- saibo_Copy
+dat <- PearlOperationalData
+
+# 2. Format pedigree data
+format_pedigree <- function(ped_data, id_col, sire_col, dam_col) {
+  data.frame(
+    id = as.factor(ped_data[[id_col]]),
+    sire = as.factor(ped_data[[sire_col]]),
+    dam = as.factor(ped_data[[dam_col]])
+  )
+}
+
+ped_host <- format_pedigree(ped_host, "Shell_Metrics_GenotypeID_DART", "Sire", "Dam")
+ped_donor$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", ped_donor$Matched_Donor_Data_Saibo_No)
+ped_donor <- format_pedigree(ped_donor, "Matched_Donor_Data_Saibo_No", "Sire", "Dam")
+
+# 3. Format phenotypic data
+dat$Shell_Metrics_GenotypeID_DART <- as.factor(dat$Shell_Metrics_GenotypeID_DART)
+dat$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", dat$Matched_Donor_Data_Saibo_No)
+dat$Matched_Donor_Data_Saibo_No <- as.factor(dat$Matched_Donor_Data_Saibo_No)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# 4. Create binary traits (Gold, Silver, White, etc.)
+create_binary_trait <- function(data, trait_name) {
+  ifelse(startsWith(trimws(data$Pearl_Grading_Data_Colour), trait_name), 1, 0)
+}
+
+traits <- c("Gold", "Silver", "White", "Cream", "Champ")
+for (trait in traits) {
+  dat[[trait]] <- create_binary_trait(dat, trait)
+}
+
+# 5. Inverse A matrix for host & donor
+ainv_host <- ainverse(ped_host)
+ainv_donor <- ainverse(ped_donor)
+
+# 6. Fit animal model for Gold ~ DVH
+mod.gold <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm,
+  random = ~ vm(Shell_Metrics_GenotypeID_DART, ainv_host),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = dat[!is.na(dat$Gold) & !is.na(dat$Pearl_Harvest_Data_DVH_mm), ]
+)
+mod.gold <- update.asreml(mod.gold)
+
+# 7. Extract Variance Components & Calculate Heritability
+varcomp_summary <- summary(mod.gold)$varcomp
+print(varcomp_summary)  # To ensure you're extracting correct components
+
+# Extract Genetic and Residual Variance
+VG <- varcomp_summary["Shell_Metrics_GenotypeID_DART", "Variance"]  # Genetic variance
+VR <- varcomp_summary["units", "Variance"]  # Residual variance
+
+# Residual Variance for Binary Traits (Logit Link)
+residual_variance_binary <- (pi^2) / 3
+
+# Calculate Heritability on the Liability Scale
+heritability_liability_scale <- VG / (VG + residual_variance_binary)
+
+# Print Heritability Estimate
+print(paste("Heritability on the liability scale:", heritability_liability_scale))
+
+```
+
+####################################################################################
+
+
+```{r}
+# Load libraries
+library(readr)
+library(asreml)
+library(nadiv)
+
+# 1. Load data
+ped_host <- host_Copy
+ped_donor <- saibo_Copy
+dat <- PearlOperationalData
+
+# 2. Format pedigree data
+format_pedigree <- function(ped_data, id_col, sire_col, dam_col) {
+  data.frame(
+    id = as.factor(ped_data[[id_col]]),
+    sire = as.factor(ped_data[[sire_col]]),
+    dam = as.factor(ped_data[[dam_col]])
+  )
+}
+
+ped_host <- format_pedigree(ped_host, "Shell_Metrics_GenotypeID_DART", "Sire", "Dam")
+ped_donor$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", ped_donor$Matched_Donor_Data_Saibo_No)
+ped_donor <- format_pedigree(ped_donor, "Matched_Donor_Data_Saibo_No", "Sire", "Dam")
+
+# 3. Format phenotypic data
+dat$Shell_Metrics_GenotypeID_DART <- as.factor(dat$Shell_Metrics_GenotypeID_DART)
+dat$Matched_Donor_Data_Saibo_No <- sub("18-03_Saibo_", "", dat$Matched_Donor_Data_Saibo_No)
+dat$Matched_Donor_Data_Saibo_No <- as.factor(dat$Matched_Donor_Data_Saibo_No)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# 4. Create binary traits (Gold, Silver, White, etc.)
+create_binary_trait <- function(data, trait_name) {
+  ifelse(startsWith(trimws(data$Pearl_Grading_Data_Colour), trait_name), 1, 0)
+}
+
+traits <- c("Gold", "Silver", "White", "Cream", "Champ")
+for (trait in traits) {
+  dat[[trait]] <- create_binary_trait(dat, trait)
+}
+
+# 5. Inverse A matrix for host & donor
+ainv_host <- ainverse(ped_host)
+ainv_donor <- ainverse(ped_donor)
+
+# 6. Fit animal model for Gold ~ DVH
+mod.gold <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm,
+  random = ~ vm(Matched_Donor_Data_Saibo_No, ainv_donor),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = dat[!is.na(dat$Gold) & !is.na(dat$Pearl_Harvest_Data_DVH_mm), ]
+)
+mod.gold <- update.asreml(mod.gold)
+
+# 7. Extract Variance Components & Calculate Heritability
+varcomp_summary <- summary(mod.gold)$varcomp
+print(varcomp_summary)  # To ensure you're extracting correct components
+
+# Extract Genetic and Residual Variance
+VG <- varcomp_summary["Matched_Donor_Data_Saibo_No", "Variance"]  # Genetic variance
+VR <- varcomp_summary["units", "Variance"]  # Residual variance
+
+# Residual Variance for Binary Traits (Logit Link)
+residual_variance_binary <- (pi^2) / 3
+
+# Calculate Heritability on the Liability Scale
+heritability_liability_scale <- VG / (VG + residual_variance_binary)
+
+# Print Heritability Estimate
+print(paste("Heritability on the liability scale:", heritability_liability_scale))
+
+```
+
+```{r}
+# Extracted Genetic Variance
+VG <- 12.0666079  # Genetic variance from the output
+
+# Residual Variance for Binary Traits (Logit Link)
+residual_variance_binary <- (pi^2) / 3  # Fixed at pi^2 / 3 for binary traits
+
+# Calculate Heritability on the Liability Scale
+heritability_liability_scale <- VG / (VG + residual_variance_binary)
+
+# Print Heritability Estimate
+print(paste("Heritability on the liability scale:", heritability_liability_scale))
+
+```
+#You have successfully extracted the necessary variance components and calculated heritability on the liability scale. The heritability is about 0.785, which suggests that genetic factors explain a substantial portion of the variation in the binary trait (Gold), adjusted for the residual variance in the logit model.
+
+
+

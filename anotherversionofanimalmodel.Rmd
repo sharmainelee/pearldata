@@ -1,0 +1,415 @@
+---
+title: "test"
+output: html_document
+date: "2025-06-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+rm(list=ls()) 
+library(asreml)
+```
+
+
+```{r}
+
+#Reading phenotypic data
+library(readr)
+host_id <- read_csv("host_id.csv")
+View(host_id)
+
+library(readr)
+donor_data <- read_csv("donor_data.csv")
+View(donor_data)
+
+```
+
+
+
+
+
+```{r}
+
+# Reading Phenotypic data
+
+host_id <- read_csv("host_id.csv")
+head(host_id)
+
+# EDA
+summary(host_id)
+hist(host_id$Pearl_Harvest_Data_DVH_mm)
+boxplot(host_id$Pearl_Grading_Data_Colour)
+table(host_id$Pearl_Grading_Data_Colour)
+```
+
+```{r}
+# Reading Phenotypic data
+
+host_id <- read_csv("host_id.csv")
+head(host_id)
+
+# create binary traits
+
+host_id$Gold   <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_id$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_id$White  <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_id$Cream  <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_id$Champ  <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# Defining Factors
+host_id$Gold<-as.factor(host_id$Gold)
+host_id$Pearl_Harvest_Data_DVH_mm<-as.factor(host_id$Pearl_Harvest_Data_DVH_mm)
+host_id$Pearl_Harvest_Data_APW_mm<-as.factor(host_id$Pearl_Harvest_Data_APW_mm)
+host_id$Pearl_Harvest_Data_Shell_Weight_g<-as.factor(host_id$Pearl_Harvest_Data_Shell_Weight_g)
+
+str(host_id)
+
+# Obtaining relationships from pedigree - A matrix
+library(nadiv)
+pedind<-host_id[,c(1:3)]
+head(pedind)
+APED<-makeA(pedind)
+APED[1:10,1:10]
+APED[40:50,40:50]
+
+# Obtaining inverse of relationships from pedigree - A matrix
+ainv<-ainverse(pedind)
+head(ainv)
+
+# Fitting Animal Model
+mod.ind<-asreml(fixed=Gold~Pearl_Harvest_Data_DVH_mm+Pearl_Harvest_Data_APW_mm+Pearl_Harvest_Data_Shell_Weight_g,
+              random=~vm(host_id$host_id,ainv),
+              residual=~idv(units),
+              data=host_id)
+mod.ind<-update.asreml(mod.ind)
+plot(mod.ind)
+summary(mod.ind)$varcomp
+
+# Transformation Proportion - z = ln[(P + c)/(100 - P + c)]
+host_id$logitPY<-log((host_id$Gold+1)/(100-host_id$Gold+1))
+hist(host_id$Gold)
+hist(host_id$logitPY)
+
+mod.indT<-asreml(fixed=logitPY~Pearl_Harvest_Data_DVH_mm+Pearl_Harvest_Data_APW_mm+Pearl_Harvest_Data_Shell_Weight_g,
+                random=~vm(host_id$host_id,ainv),
+                residual=~idv(units),
+                data=host_id)
+mod.indT<-update.asreml(mod.indT)
+plot(mod.indT)
+summary(mod.indT)$varcomp
+
+# Calculating heritability
+vpredict(mod.indT,h2~V1/(V1+V2))
+
+# Obtaining BLUP & Predictions
+BLUP<-as.data.frame(summary(mod.indT,coef=TRUE)$coef.random)
+head(BLUP)
+BLUP$Mean<-mean(LIZARD$logitP_YELLOW)
+BLUP$Preds<-BLUP$Mean+BLUP$solution
+
+# Back-transformation: P = [(100 + c)*exp(z) - c]/[1 + exp(z)]
+BLUP$BT_Preds<-((100+1)*exp(BLUP$Preds)-1)/(1+exp(BLUP$Preds))
+head(BLUP)
+View(BLUP)
+
+
+
+
+```
+
+
+```{r}
+# 1. Load libraries
+library(asreml)
+library(nadiv)
+library(readr)
+library(dplyr)
+
+# 2. Load combined data
+df <- read_csv("host_id.csv")
+
+# 3. Prepare pedigree
+ped <- df %>%
+  select(ID = host_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+# 4. Create inverse A matrix
+ainv <- ainverse(ped)
+
+# 5. Prepare phenotypic data
+dat <- df %>%
+  mutate(
+    Host_ID = as.factor(host_id),
+    White_binary = ifelse(Pearl_Grading_Data_Colour == "White", 1, 0),
+    DVH = Pearl_Harvest_Data_DVH_mm
+  )
+
+# 6. Fit animal model (logit model for binary trait)
+mod <- asreml(
+  fixed = White_binary ~ DVH,              # Replace DVH with other fixed effects as needed
+  random = ~ vm(Host_ID, ainv),
+  residual = ~ units,
+  data = dat,
+  family = asreml.binomial(link = "logit")
+)
+
+# 7. Update and extract results
+mod <- update.asreml(mod)
+summary(mod)$varcomp
+
+# 8. Estimate heritability
+vpredict(mod, h2 ~ V1 / (V1 + V2))
+
+# 9. Extract BLUPs (EBVs)
+blups <- summary(mod, coef = TRUE)$coef.random
+head(blups)
+
+```
+
+
+
+```{r}
+# Load packages
+library(readr)
+library(asreml)
+library(nadiv)
+
+# 1. Load the dataset
+host_id <- read_csv("host_id.csv")
+head(host_id)
+
+# 2. Create binary traits for colour categories
+host_id$Gold   <- ifelse(startsWith(host_id$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_id$Silver <- ifelse(startsWith(host_id$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_id$White  <- ifelse(startsWith(host_id$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_id$Cream  <- ifelse(startsWith(host_id$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_id$Champ  <- ifelse(startsWith(host_id$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Define appropriate factor/numeric variables
+host_id$host_id <- as.factor(host_id$host_id)
+host_id$Dam     <- as.factor(host_id$Dam)
+host_id$Sire    <- as.factor(host_id$Sire)
+host_id$Gold    <- as.numeric(host_id$Gold)  # binary numeric
+
+# Keep shell metrics as numeric (not factor)
+host_id$Pearl_Harvest_Data_DVH_mm          <- as.numeric(host_id$Pearl_Harvest_Data_DVH_mm)
+host_id$Pearl_Harvest_Data_APW_mm          <- as.numeric(host_id$Pearl_Harvest_Data_APW_mm)
+host_id$Pearl_Harvest_Data_Shell_Weight_g  <- as.numeric(host_id$Pearl_Harvest_Data_Shell_Weight_g)
+
+str(host_id)
+
+# 4. Create pedigree and A-inverse
+pedind <- host_id[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # ensure all are factors
+
+ainv <- ainverse(pedind)
+
+# Drop rows with NAs in key columns
+host_id_clean <- host_id %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(host_id)
+  )
+
+# 5. Fit Animal Model (after cleaning)
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_id_clean,
+  family = asr_binomial(link = "logit")
+)
+
+mod.ind <- update.asreml(mod.ind)
+
+# View variance components
+summary(mod.ind)$varcomp
+
+# 6. (Optional) Logit transformation for proportion model (less relevant if binary)
+host_id$logitPY <- log((host_id$Gold + 1) / (100 - host_id$Gold + 1))
+
+# 7. Fit transformed model
+mod.indT <- asreml(
+  fixed = logitPY ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_id
+)
+mod.indT <- update.asreml(mod.indT)
+
+# 8. View results
+summary(mod.indT)$varcomp
+
+# 9. Heritability
+vpredict(mod.indT, h2 ~ V1 / (V1 + V2))
+
+# 10. BLUPs
+BLUP <- as.data.frame(summary(mod.indT, coef = TRUE)$coef.random)
+head(BLUP)
+
+# 11. Prediction (using overall mean of logitPY)
+BLUP$Mean <- mean(host_id$logitPY, na.rm = TRUE)
+BLUP$Preds <- BLUP$Mean + BLUP$solution
+
+# 12. Back-transformation
+BLUP$BT_Preds <- ((100 + 1) * exp(BLUP$Preds) - 1) / (1 + exp(BLUP$Preds))
+
+head(BLUP)
+View(BLUP)
+
+```
+
+
+
+
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+# 4. Ensure shell metrics are numeric
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for Gold (binary trait)
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 10. Estimate heritability safely using vpredict
+# Get the correct component names
+#asreml::vpredict(mod.ind, h2 ~ `vm(host_id, ainv)` / (`vm(host_id, ainv)` + `units!units`))
+
+#vpredict(mod.ind, h2 ~ `vm(host_id, ainv)` / (`vm(host_id, ainv)` + 1))
+
+
+# 9. Estimate heritability
+#asreml::vpredict(mod.ind, h2~V1/(V1+V2))
+
+
+
+#mod.ind$gammas.names <- c("Va", "Ve")  # Additive and residual
+#vpredict(mod.ind, h2 ~ Va / (Va + Ve))
+
+#####
+
+# Extract variance components
+#vc <- summary(mod.ind)$varcomp
+
+# Manually extract additive variance (make sure the name matches!)
+#Va <- vc["vm(host_id, ainv)", "component"]
+
+# Residual variance for binary (logit) trait is fixed to 1
+#Ve <- 1
+
+# Compute heritability
+#h2 <- Va / (Va + Ve)
+
+# Print result
+#cat("Heritability (latent scale):", round(h2, 4), "\n")
+
+##Heritability (latent scale): 0.9825 
+##This suggests very high heritability on the latent scale — potentially too high, which could also be a sign of overfitting or lack of phenotypic variation (e.g., very imbalanced 1s and 0s).
+
+
+
+
+
+
+# calculate heritability on the observed scale from your animal model for a binary trait (like Gold). This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+
+# 1. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # residual variance for logistic model
+
+# 2. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 3. Calculate prevalence of trait (Gold)
+p <- mean(host_id_clean$Gold, na.rm = TRUE)  # Proportion of "1"s
+
+# 4. Find threshold z and normal density at z
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+# 5. Observed-scale heritability
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 6. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+##Heritability (observed scale): 0.2416 
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
