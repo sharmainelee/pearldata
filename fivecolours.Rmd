@@ -1,0 +1,778 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-07-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+# 4. Ensure shell metrics are numeric
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for Gold (binary trait)
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+# calculate heritability on the observed scale from your animal model for a binary trait (like Gold). This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+# 1. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # residual variance for logistic model
+
+# 2. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 3. Calculate prevalence of trait (Gold)
+p <- mean(host_dat_clean$Gold, na.rm = TRUE)  # Proportion of "1"s
+
+# 4. Find threshold z and normal density at z
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+# 5. Observed-scale heritability
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 6. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+#Heritability (latent scale):   0.9825 
+#Heritability (observed scale): 0.2416 
+
+
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+BLUP$prob_gold
+
+
+
+```
+
+
+
+
+```{r}
+
+
+# 12. Add host ID
+BLUP$host_id <- rownames(BLUP)
+
+# 13. Plot Top and Bottom 10 BLUPs
+top_bottom <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n() - 9):n())) %>%
+  mutate(
+    host_id = factor(host_id, levels = host_id[order(solution)])
+  )
+
+ggplot(top_bottom, aes(x = host_id, y = solution)) +
+  geom_col(aes(fill = solution > 0), show.legend = FALSE) +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  coord_flip() +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Genetic Merit for Gold",
+    x = "Host Oyster ID",
+    y = "BLUP (latent scale)"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+
+
+
+
+## SILVER
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+host_dat$First_Op_Data_Saibo_Area    <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+
+# 4. Ensure shell metrics are numeric
+host_dat$First_Op_Data_Nuclei_Size_mm         <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for Gold (binary trait)
+mod.ind <- asreml(
+  fixed = Silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+
+# calculate heritability on the observed scale from your animal model for a binary trait (like Gold). This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+
+# 1. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # residual variance for logistic model
+
+# 2. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 3. Calculate prevalence of trait (Gold)
+p <- mean(host_dat_clean$Silver, na.rm = TRUE)  # Proportion of "1"s
+
+# 4. Find threshold z and normal density at z
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+# 5. Observed-scale heritability
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 6. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+## Heritability (latent scale):   0.9884 
+## Heritability (observed scale): 0.3671
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+BLUP$prob_silver
+
+```
+
+
+```{r}
+## Top & Bottom 10 Oysters
+## Highlights oysters with highest/lowest breeding values for Silver production.
+top_bottom <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n()-9):n())) %>%
+  mutate(Host_ID = rownames(.)) %>%
+  mutate(Host_ID = factor(Host_ID, levels = Host_ID[order(solution)]))
+
+ggplot(top_bottom, aes(x = Host_ID, y = solution, fill = solution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Genetic Merit (Silver Trait)",
+    x = "Host Oyster ID",
+    y = "EBV (latent scale)"
+  ) +
+  theme_minimal()
+```
+
+
+
+## WHITE
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+host_dat$First_Op_Data_Saibo_Area    <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+
+# 4. Ensure shell metrics are numeric
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g         <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for White (binary trait)
+mod.ind <- asreml(
+  fixed = White ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+
+# calculate heritability on the observed scale from your animal model for a binary trait (like Gold). This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+
+# 1. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # residual variance for logistic model
+
+# 2. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 3. Calculate prevalence of trait 
+p <- mean(host_dat_clean$White, na.rm = TRUE)  # Proportion of "1"s
+
+# 4. Find threshold z and normal density at z
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+# 5. Observed-scale heritability
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 6. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+## Heritability (latent scale):   0.9949 
+## Heritability (observed scale): 0.5813
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+BLUP$prob_white <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+BLUP$prob_white
+
+```
+
+
+```{r}
+
+## Top & Bottom 10 Host Oysters (Bar Plot)
+top_bottom <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n() - 9):n())) %>%
+  mutate(Host_ID = rownames(.)) %>%
+  mutate(Host_ID = factor(Host_ID, levels = Host_ID[order(solution)]))
+
+ggplot(top_bottom, aes(x = Host_ID, y = solution, fill = solution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Genetic Merit (White Trait)",
+    x = "Host Oyster ID",
+    y = "EBV (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+# 4. Ensure numeric
+host_dat$First_Op_Data_DVH_mm         <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+# 5. Remove rows with missing data and check pedigree completeness
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(host_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 6. Check if there’s variation in the trait
+if (length(unique(host_dat_clean$Cream)) < 2) {
+  stop("No variation in Cream trait — all values are 0 or 1.")
+}
+
+# 7. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+ainv <- ainverse(pedind)
+
+# 8. Fit animal model
+mod.ind <- asreml(
+  fixed = Cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+mod.ind <- update.asreml(mod.ind)  # 1st update
+mod.ind <- update.asreml(mod.ind)  # 2nd update to ensure convergence
+
+# 9. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # For logistic model
+
+# 10. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 11. Prevalence and check for valid z-score
+p <- mean(host_dat_clean$Cream, na.rm = TRUE)
+
+if (p <= 0 | p >= 1) {
+  warning("Trait prevalence is 0 or 1 — cannot compute observed-scale heritability.")
+  h2_obs <- NA
+} else {
+  z <- qnorm(p)
+  phi_z <- dnorm(z)
+  h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+}
+
+# 12. Report
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# 13. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$host_id <- rownames(BLUP)
+BLUP$prob_cream <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+
+```{r}
+
+## cREAM
+
+## issues with fixed effects in model, used a simple model
+
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+
+# 4. Ensure shell metrics are numeric
+host_dat$First_Op_Data_DVH_mm         <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm         <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for Cream (binary trait)
+#mod.ind <- asreml(
+#  fixed = Cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
+#  random = ~ vm(host_id, ainv),
+#  residual = ~ idv(units),
+#  data = host_dat_clean,
+#  family = asr_binomial(link = "logit")
+#)
+
+mod.ind <- asreml(
+  fixed = Cream ~ 1,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+
+# calculate heritability on the observed scale from your animal model for a binary trait (like Gold). This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+
+# 1. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # residual variance for logistic model
+
+# 2. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 3. Calculate prevalence of trait 
+p <- mean(host_dat_clean$Cream, na.rm = TRUE)  # Proportion of "1"s
+
+# 4. Find threshold z and normal density at z
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+# 5. Observed-scale heritability
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 6. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+## Heritability (latent scale):    0.892 
+## Heritability (observed scale):  0.2092
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+BLUP$prob_cream <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+BLUP$prob_cream
+
+```
+
+
+
+```{r}
+## Top & Bottom 10 Host Oysters by EBV
+top_bottom <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n() - 9):n())) %>%
+  mutate(Host_ID = rownames(.)) %>%
+  mutate(Host_ID = factor(Host_ID, levels = Host_ID[order(solution)]))
+
+ggplot(top_bottom, aes(x = Host_ID, y = solution, fill = solution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by EBV (Cream Trait)",
+    x = "Host Oyster ID",
+    y = "BLUP (latent scale)"
+  ) +
+  theme_minimal()
+```
+
+
+
+## cHAMPAGNE
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture    <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+
+# 4. Ensure shell metrics are numeric
+
+
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for champ (binary trait)
+mod.ind <- asreml(
+  fixed = Champ ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+
+# calculate heritability on the observed scale from your animal model for a binary trait (like Gold). This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+
+# 1. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # residual variance for logistic model
+
+# 2. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 3. Calculate prevalence of trait 
+p <- mean(host_dat_clean$Champ, na.rm = TRUE)  # Proportion of "1"s
+
+# 4. Find threshold z and normal density at z
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+# 5. Observed-scale heritability
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 6. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+## Heritability (latent scale):   0.9715 
+## Heritability (observed scale): 0.1581 
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+BLUP$prob_champ
+
+```
+
+
+
+```{r}
+
+## Top and Bottom 10 EBVs (Bar Plot)
+top_bottom <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n() - 9):n())) %>%
+  mutate(Host_ID = rownames(.)) %>%
+  mutate(Host_ID = factor(Host_ID, levels = Host_ID[order(solution)]))
+
+ggplot(top_bottom, aes(x = Host_ID, y = solution, fill = solution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Genetic Merit (Champagne)",
+    x = "Host Oyster ID",
+    y = "EBV (latent scale)"
+  ) +
+  theme_minimal()
+
+```
