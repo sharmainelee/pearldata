@@ -272,7 +272,9 @@ View(BLUP)
 
 
 
+## START FROM HERE ONWARDS
 
+#GOLD
 
 ```{r}
 # Load required libraries
@@ -409,6 +411,330 @@ cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
 # 11. Extract BLUPs
 BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
 head(BLUP)
+
+BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+BLUP$prob_gold
+
+
+
+```
+
+
+
+```{r}
+
+## too cluttered GOLD 
+##visualize the BLUPs from mod.ind model
+
+## Each point: the estimated genetic effect (EBV/BLUP) for each oyster.
+
+##Error bars: ±1 standard error → uncertainty in the BLUP estimate.
+
+##Higher BLUP = better genetic potential to produce Gold pearls.
+
+library(ggplot2)
+
+# 1. Extract BLUPs (host genetic effects only)
+blup_df <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+
+# 2. Clean row names (extract ID)
+blup_df$Host_ID <- gsub("vm\\(host_id, ainv\\)_", "", rownames(blup_df))
+
+# 3. Plot BLUPs (genetic merit for Gold production)
+ggplot(blup_df, aes(x = reorder(Host_ID, solution), y = solution)) +
+  geom_point(color = "#1f77b4") +
+  geom_errorbar(aes(ymin = solution - std.error, ymax = solution + std.error), width = 0.2) +
+  coord_flip() +
+  labs(
+    title = "Genetic Merit (BLUPs) for Gold Pearl Production",
+    x = "Host Oyster ID",
+    y = "BLUP (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+
+```{r}
+
+##too cluttered GOLD 
+
+## Convert to Probabilities and Plot
+
+blup_df$prob_gold <- exp(blup_df$solution) / (1 + exp(blup_df$solution))
+
+ggplot(blup_df, aes(x = reorder(Host_ID, prob_gold), y = prob_gold)) +
+  geom_col(fill = "goldenrod") +
+  coord_flip() +
+  labs(
+    title = "Predicted Probability of Producing Gold Pearls",
+    x = "Host Oyster ID",
+    y = "Probability"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+
+## Distribution of Genetic Merit (BLUPs) for Gold Pearl Production
+ggplot(blup_df, aes(x = solution)) +
+  geom_histogram(binwidth = 0.5, fill = "#1f77b4", color = "white") +
+  labs(
+    title = "Distribution of Genetic Merit (BLUPs) for Gold Pearl Production",
+    x = "BLUP (latent scale)",
+    y = "Number of Host Oysters"
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r}
+
+##Density of Genetic Merit (BLUPs)
+ggplot(blup_df, aes(x = solution)) +
+  geom_density(fill = "#1f77b4", alpha = 0.5) +
+  labs(
+    title = "Density of Genetic Merit (BLUPs)",
+    x = "BLUP (latent scale)",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+## GOOD
+## Top/Bottom N Ranked Oysters Only
+##  Focuses on just the most useful oysters.
+
+# Select top 10 and bottom 10 BLUPs
+top_bottom <- blup_df %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n()-9):n()))
+
+# Reorder for clearer plotting
+top_bottom$Host_ID <- factor(top_bottom$Host_ID, levels = top_bottom$Host_ID[order(top_bottom$solution)])
+
+ggplot(top_bottom, aes(x = Host_ID, y = solution)) +
+  geom_col(fill = ifelse(top_bottom$solution > 0, "forestgreen", "firebrick")) +
+  coord_flip() +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Genetic Merit for Gold",
+    x = "Host Oyster ID",
+    y = "BLUP (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+
+## Rank Plot of All Oysters
+## Avoids axis labels but shows relative ranks and outliers.
+
+blup_df <- blup_df %>%
+  arrange(solution) %>%
+  mutate(Rank = row_number())
+
+ggplot(blup_df, aes(x = Rank, y = solution)) +
+  geom_point(color = "#1f77b4", alpha = 0.7) +
+  geom_smooth(method = "loess", se = FALSE, color = "black", linetype = "dashed") +
+  labs(
+    title = "Ranked Genetic Merit of Host Oysters",
+    x = "Rank (Lowest to Highest BLUP)",
+    y = "BLUP (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+## SILVER
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- read_csv("host_id.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+host_dat$First_Op_Data_Saibo_Area    <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+
+# 4. Ensure shell metrics are numeric
+host_dat$First_Op_Data_Nuclei_Size_mm         <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for Gold (binary trait)
+mod.ind <- asreml(
+  fixed = Silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+
+# calculate heritability on the observed scale from your animal model for a binary trait (like Gold). This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+
+# 1. Extract variance components
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+Ve <- 1  # residual variance for logistic model
+
+# 2. Latent-scale heritability
+h2_latent <- Va / (Va + Ve)
+
+# 3. Calculate prevalence of trait (Gold)
+p <- mean(host_id_clean$Silver, na.rm = TRUE)  # Proportion of "1"s
+
+# 4. Find threshold z and normal density at z
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+# 5. Observed-scale heritability
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 6. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+## Heritability (latent scale):   0.9884 
+## Heritability (observed scale): 0.3671
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+BLUP$prob_silver
+
+```
+
+## graphs for SILVER
+
+```{r}
+library(ggplot2)
+
+ggplot(BLUP, aes(x = solution)) +
+  geom_histogram(binwidth = 0.5, fill = "#5DADE2", color = "white") +
+  labs(
+    title = "Distribution of Estimated Breeding Values (EBVs) for Silver Trait",
+    x = "BLUP (latent scale)",
+    y = "Number of Host Oysters"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+BLUP <- BLUP %>%
+  arrange(solution) %>%
+  mutate(Rank = row_number())
+
+ggplot(BLUP, aes(x = Rank, y = solution)) +
+  geom_point(color = "#1F618D", size = 2) +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Ranked Genetic Merit of Host Oysters (Silver Trait)",
+    x = "Rank (lowest to highest)",
+    y = "EBV (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+
+```{r}
+top_bottom <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n()-9):n())) %>%
+  mutate(Host_ID = rownames(.)) %>%
+  mutate(Host_ID = factor(Host_ID, levels = Host_ID[order(solution)]))
+
+ggplot(top_bottom, aes(x = Host_ID, y = solution, fill = solution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Genetic Merit (Silver Trait)",
+    x = "Host Oyster ID",
+    y = "EBV (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r}
 
 ```
 
