@@ -918,4 +918,89 @@ BLUP$prob_champ
 ```
 
 
+## champ graphs 
+
+```{r}
+
+## Histogram of EBVs (Latent Scale)
+library(ggplot2)
+library(dplyr)
+
+ggplot(BLUP, aes(x = solution)) +
+  geom_histogram(binwidth = 0.5, fill = "#F7DC6F", color = "white") +
+  labs(
+    title = "Distribution of EBVs for Champagne Trait",
+    x = "BLUP (latent scale)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+
+
+
+
+```{r}
+
+## ranked EBVS
+BLUP <- BLUP %>%
+  arrange(solution) %>%
+  mutate(Rank = row_number())
+
+ggplot(BLUP, aes(x = Rank, y = solution)) +
+  geom_point(color = "#F1C40F", size = 2) +
+  geom_smooth(method = "loess", se = FALSE, color = "gray40", linetype = "dashed") +
+  labs(
+    title = "Ranked EBVs for Champagne Trait",
+    x = "Host Oyster Rank",
+    y = "BLUP (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+
+
+```{r}
+
+## Top and Bottom 10 EBVs (Bar Plot)
+top_bottom <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n() - 9):n())) %>%
+  mutate(Host_ID = rownames(.)) %>%
+  mutate(Host_ID = factor(Host_ID, levels = Host_ID[order(solution)]))
+
+ggplot(top_bottom, aes(x = Host_ID, y = solution, fill = solution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Genetic Merit (Champagne)",
+    x = "Host Oyster ID",
+    y = "EBV (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r}
+## Density Plot of Predicted Probabilities
+
+ggplot(BLUP, aes(x = prob_champ)) +
+  geom_density(fill = "#FCF3CF", color = "#B7950B", alpha = 0.7) +
+  labs(
+    title = "Predicted Probability of Producing Champagne Pearls",
+    x = "Predicted Probability",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+```
+
+
 
