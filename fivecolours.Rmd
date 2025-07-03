@@ -1004,7 +1004,7 @@ mod <- asreml(
 
 
 ```{r}
-#WORKS
+#WORKS SILVER
 # Load required libraries
 library(readr)
 library(asreml)
@@ -1094,5 +1094,299 @@ head(BLUP)
 
 
 
+
+
+
+#WHITE
+
+
+
+```{r}
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Fix column names and convert to factors
+donor_dat$donor_id <- as.factor(as.character(donor_dat$donor_id))  # Genetic ID
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (accounting for compound names)
+donor_dat$Gold   <- ifelse(grepl("Gold",   donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Silver <- ifelse(grepl("Silver", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$White  <- ifelse(grepl("White",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Cream  <- ifelse(grepl("Cream",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Champ  <- ifelse(grepl("Champ",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure pedigree columns are factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+#added this line to ensure the column is a factor:
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round)
+
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = White ~ Matched_Donor_Data_Nacre_lip_colour_Round,
+  random = ~ vm(donor_id, ainv),          # Genetic effect (multiple observations allowed)
+  residual = ~ idv(units),                # Independent residuals per saibo observation
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")   # For binary trait (e.g., white presence)
+)
+
+# 8. Update model to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 10. Calculate heritability
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # Residual variance on logistic scale
+h2_latent <- Va / (Va + Ve)
+
+# 11. Adjust to observed scale using trait prevalence
+p <- mean(donor_dat_clean$White, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# Heritability (latent scale):   0.1817 
+# Heritability (observed scale): 0.111
+
+# 13. Extract BLUPs (random genetic solutions for each donor)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$prob_white <- exp(BLUP$solution) / (1 + exp(BLUP$solution))  # Convert log-odds to probability
+head(BLUP)
+
+```
+
+
+
+
+## CREAM
+```{r}
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Fix column names and convert to factors
+donor_dat$donor_id <- as.factor(as.character(donor_dat$donor_id))  # Genetic ID
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+# 4. Ensure shell metrics are numeric
+donor_dat$Matched_Donor_Data_DVH_mm         <- as.numeric(donor_dat$Matched_Donor_Data_DVH_mm)
+donor_dat$Matched_Donor_Data_Shell_Weight_g         <- as.numeric(donor_dat$Matched_Donor_Data_Shell_Weight_g)
+
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (accounting for compound names)
+donor_dat$Gold   <- ifelse(grepl("Gold",   donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Silver <- ifelse(grepl("Silver", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$White  <- ifelse(grepl("White",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Cream  <- ifelse(grepl("Cream",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Champ  <- ifelse(grepl("Champ",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g ),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure pedigree columns are factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+
+
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Cream ~ Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g,
+  random = ~ vm(donor_id, ainv),          # Genetic effect (multiple observations allowed)
+  residual = ~ idv(units),                # Independent residuals per saibo observation
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")   # For binary trait (e.g., white presence)
+)
+
+# 8. Update model to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 10. Calculate heritability
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # Residual variance on logistic scale
+h2_latent <- Va / (Va + Ve)
+
+# 11. Adjust to observed scale using trait prevalence
+p <- mean(donor_dat_clean$White, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# Heritability (latent scale):   0.7079
+# Heritability (observed scale):  0.4325 
+
+# 13. Extract BLUPs (random genetic solutions for each donor)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$prob_cream <- exp(BLUP$solution) / (1 + exp(BLUP$solution))  # Convert log-odds to probability
+head(BLUP)
+
+```
+
+
+
+
+#CHAMP
+
+
+
+```{r}
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Fix column names and convert to factors
+donor_dat$donor_id <- as.factor(as.character(donor_dat$donor_id))  # Genetic ID
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (accounting for compound names)
+donor_dat$Gold   <- ifelse(grepl("Gold",   donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Silver <- ifelse(grepl("Silver", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$White  <- ifelse(grepl("White",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Cream  <- ifelse(grepl("Cream",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+donor_dat$Champ  <- ifelse(grepl("Champ",  donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure pedigree columns are factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+#added this line to ensure the column is a factor:
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Champ ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),          # Genetic effect (multiple observations allowed)
+  residual = ~ idv(units),                # Independent residuals per saibo observation
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")   # For binary trait (e.g., white presence)
+)
+
+# 8. Update model to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 10. Calculate heritability
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # Residual variance on logistic scale
+h2_latent <- Va / (Va + Ve)
+
+# 11. Adjust to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Champ, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# Heritability (latent scale):  0.8685
+# Heritability (observed scale): 0.096 
+
+# 13. Extract BLUPs (random genetic solutions for each donor)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))  # Convert log-odds to probability
+head(BLUP)
+
+```
 
 
