@@ -1004,7 +1004,7 @@ mod <- asreml(
 
 
 ```{r}
-#WORKS SILVER
+# WORKS SILVER
 # Load required libraries
 library(readr)
 library(asreml)
@@ -1092,7 +1092,156 @@ head(BLUP)
 
 ```
 
+## SILVER GRAPHS
 
+
+
+
+
+
+
+```{r}
+ggplot(donor_dat_clean, aes(x = Matched_Donor_Data_Nacre_lip_colour_Round, y = Silver)) +
+  geom_boxplot(fill = "lightgray", outlier.color = "red", outlier.shape = 1) +
+  stat_summary(fun = mean, geom = "point", color = "blue", size = 2) +
+  labs(
+    title = "Silver Pearl Outcome by Donor Nacre Lip Colour",
+    x = "Lip Colour",
+    y = "Silver Presence (0 = No, 1 = Yes)"
+  ) +
+  theme_minimal(base_size = 13)
+
+donor_dat_clean %>%
+  count(Matched_Donor_Data_Nacre_lip_colour_Round) %>%
+  arrange(desc(n))
+
+
+
+
+
+```
+
+
+```{r}
+ggplot(
+  donor_dat_clean %>% filter(Matched_Donor_Data_Nacre_lip_colour_Round != "WY"),
+  aes(x = Matched_Donor_Data_Nacre_lip_colour_Round, y = Silver)
+) +
+  geom_boxplot(fill = "lightgray", outlier.color = "red", outlier.shape = 1) +
+  stat_summary(fun = mean, geom = "point", color = "blue", size = 2) +
+  labs(
+    title = "Silver Pearl Outcome by Donor Nacre Lip Colour (Excl. WY)",
+    x = "Lip Colour",
+    y = "Silver Presence (0 = No, 1 = Yes)"
+  ) +
+  theme_minimal(base_size = 13)
+
+```
+
+
+
+```{r}
+ggplot(
+  donor_dat_clean %>% 
+    filter(!Matched_Donor_Data_Nacre_lip_colour_Round %in% c("WY", "LGr")),
+  aes(x = Matched_Donor_Data_Nacre_lip_colour_Round, y = Silver)
+) +
+  geom_boxplot(fill = "lightgray", outlier.color = "red", outlier.shape = 1) +
+  stat_summary(fun = mean, geom = "point", color = "blue", size = 2) +
+  labs(
+    title = "Silver Pearl Outcome by Donor Nacre Lip Colour (Excl. WY, LGr)",
+    x = "Lip Colour",
+    y = "Silver Presence (0 = No, 1 = Yes)"
+  ) +
+  theme_minimal(base_size = 13)
+
+```
+
+
+
+
+```{r}
+h2_df <- data.frame(
+  Scale = c("Latent (logit)", "Observed"),
+  Heritability = c(h2_latent, h2_obs)
+)
+
+ggplot(h2_df, aes(x = Scale, y = Heritability, fill = Scale)) +
+  geom_col(width = 0.5) +
+  geom_text(aes(label = round(Heritability, 3)), vjust = -0.5, size = 5) +
+  ylim(0, max(h2_df$Heritability) + 0.1) +
+  scale_fill_manual(values = c("steelblue", "darkorange")) +
+  labs(
+    title = "Heritability Estimates for Silver Trait",
+    y = "Heritability",
+    x = ""
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Prepare top and bottom 10 donors by genetic merit (solution) for Silver
+top_bottom_silver <- BLUP %>%
+  arrange(desc(solution)) %>%
+  slice(c(1:10, (n() - 9):n())) %>%
+  mutate(donor_id = rownames(.)) %>%  # Add donor_id from rownames
+  mutate(donor_id = factor(donor_id, levels = donor_id[order(solution)]))  # Factor for plotting order
+
+# Plot the bar chart
+ggplot(top_bottom_silver, aes(x = donor_id, y = solution, fill = solution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Donors by Genetic Merit (Silver Trait)",
+    x = "Donor ID",
+    y = "EBV (latent scale)"
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Assuming BLUP dataframe has rownames as donor IDs or donor IDs in a column (adjust if needed)
+BLUP$donor_id <- rownames(BLUP)  # add donor IDs as a column if not already
+
+# Sort by EBV (solution)
+BLUP_sorted <- BLUP %>%
+  arrange(solution)
+
+# Select bottom 10 and top 10
+bottom10 <- head(BLUP_sorted, 10)
+top10 <- tail(BLUP_sorted, 10)
+
+# Combine and create a label factor for ordering in plot
+plot_data <- bind_rows(bottom10, top10) %>%
+  mutate(donor_id = factor(donor_id, levels = donor_id))  # Keep order as is
+
+# Create the bar plot
+ggplot(plot_data, aes(x = donor_id, y = solution, fill = solution > 0)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # Horizontal bars
+  scale_fill_manual(values = c("TRUE" = "steelblue", "FALSE" = "tomato")) +
+  labs(
+    title = "Top 10 and Bottom 10 Donor EBVs for Silver Trait",
+    x = "Donor ID",
+    y = "EBV (log-odds scale)",
+    fill = "Positive EBV"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+```
 
 
 
@@ -1388,5 +1537,589 @@ BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))  # Convert log-
 head(BLUP)
 
 ```
+
+###
+7 July 
+
+
+Silver
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Fix column names and convert to factors - ensure unique IDs
+# Create unique IDs by prefixing with type
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(paste0("D_", donor_id)),
+    dam = ifelse(is.na(dam), NA, paste0("M_", dam)),
+    sire = ifelse(is.na(sire), NA, paste0("F_", sire))
+  )
+
+# Convert to factors
+donor_dat$donor_id <- as.factor(donor_dat$donor_id)
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour
+donor_dat$Silver <- ifelse(grepl("Silver", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(donor_id),
+    !is.na(Sire) | !is.na(Dam)  # Need at least one parent
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(
+    SIRE = ifelse(is.na(SIRE), "0", as.character(SIRE)),
+    DAM = ifelse(is.na(DAM), "0", as.character(DAM))
+  )
+
+# Ensure all IDs are unique and properly formatted
+all_ids <- unique(c(levels(pedind$ID), levels(pedind$SIRE), levels(pedind$DAM)))
+pedind <- pedind %>%
+  mutate(
+    ID = factor(ID, levels = all_ids),
+    SIRE = factor(SIRE, levels = all_ids),
+    DAM = factor(DAM, levels = all_ids)
+  )
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Ensure the fixed effect is a factor
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(
+  donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round
+)
+
+# 8. Fit the animal model
+mod.ind <- asreml(
+  fixed = Silver ~ Matched_Donor_Data_Nacre_lip_colour_Round,
+  random = ~ vm(donor_id, ainv),          # Genetic effect
+  residual = ~ idv(units),                # Independent residuals
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")   # For binary trait
+)
+
+# 9. Update model to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 10. Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 11. Calculate heritability
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # Residual variance on logistic scale
+h2_latent <- Va / (Va + Ve)
+
+# 12. Adjust to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Silver, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 13. Print heritability results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# 14. Extract BLUPs (random genetic solutions for each donor)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+head(BLUP)
+```
+
+
+
+
+## graphs for silver
+
+```{r}
+library(ggplot2)
+
+# Add donor_id as a column if it's currently row names
+BLUP$donor_id <- rownames(BLUP)
+
+# Filter only donor_id terms (exclude other random terms if present)
+BLUP_filtered <- BLUP %>%
+  filter(grepl("^vm\\(donor_id", rownames(BLUP)))
+
+# Clean up donor_id names
+BLUP_filtered$donor_id <- gsub("vm\\(donor_id, ainv\\)_", "", rownames(BLUP_filtered))
+
+# Get top and bottom 10
+top10 <- BLUP_filtered %>% arrange(desc(solution)) %>% slice(1:10)
+bottom10 <- BLUP_filtered %>% arrange(solution) %>% slice(1:10)
+
+# Combine for plotting
+top_bottom <- bind_rows(top10, bottom10) %>%
+  mutate(rank_group = ifelse(solution >= 0, "Top 10", "Bottom 10"))
+
+# Plot
+ggplot(top_bottom, aes(x = reorder(donor_id, solution), y = solution, fill = rank_group)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Top and Bottom 10 Donors by Genetic Merit for Silver Trait",
+    x = "Donor ID",
+    y = "BLUP (Genetic Merit)"
+  ) +
+  scale_fill_manual(values = c("Top 10" = "#1b9e77", "Bottom 10" = "#d95f02")) +
+  theme_minimal()
+
+```
+
+
+
+
+## white
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Fix column names and convert to factors - ensure unique IDs
+# Create unique IDs by prefixing with type
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(paste0("D_", donor_id)),
+    dam = ifelse(is.na(dam), NA, paste0("M_", dam)),
+    sire = ifelse(is.na(sire), NA, paste0("F_", sire))
+  )
+
+# Convert to factors
+donor_dat$donor_id <- as.factor(donor_dat$donor_id)
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour
+donor_dat$White <- ifelse(grepl("White", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(donor_id),
+    !is.na(Sire) | !is.na(Dam)  # Need at least one parent
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(
+    SIRE = ifelse(is.na(SIRE), "0", as.character(SIRE)),
+    DAM = ifelse(is.na(DAM), "0", as.character(DAM))
+  )
+
+# Ensure all IDs are unique and properly formatted
+all_ids <- unique(c(levels(pedind$ID), levels(pedind$SIRE), levels(pedind$DAM)))
+pedind <- pedind %>%
+  mutate(
+    ID = factor(ID, levels = all_ids),
+    SIRE = factor(SIRE, levels = all_ids),
+    DAM = factor(DAM, levels = all_ids)
+  )
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Ensure the fixed effect is a factor
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(
+  donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round
+)
+
+# 8. Fit the animal model
+mod.ind <- asreml(
+  fixed = White ~ Matched_Donor_Data_Nacre_lip_colour_Round,
+  random = ~ vm(donor_id, ainv),          # Genetic effect
+  residual = ~ idv(units),                # Independent residuals
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")   # For binary trait
+)
+
+# 9. Update model to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 10. Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 11. Calculate heritability
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # Residual variance on logistic scale
+h2_latent <- Va / (Va + Ve)
+
+# 12. Adjust to observed scale using trait prevalence
+p <- mean(donor_dat_clean$White, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 13. Print heritability results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# 14. Extract BLUPs (random genetic solutions for each donor)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$prob_white <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+head(BLUP)
+```
+
+## white graphs
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Ensure donor_id is extracted and cleaned
+BLUP$donor_id <- rownames(BLUP)
+
+# Filter only donor_id BLUPs
+BLUP_filtered <- BLUP %>%
+  filter(grepl("^vm\\(donor_id", donor_id))
+
+# Clean the donor_id name for plotting
+BLUP_filtered$donor_id <- gsub("vm\\(donor_id, ainv\\)_", "", BLUP_filtered$donor_id)
+
+# Get top and bottom 10 donors by BLUP (genetic merit)
+top10 <- BLUP_filtered %>% arrange(desc(solution)) %>% slice(1:10)
+bottom10 <- BLUP_filtered %>% arrange(solution) %>% slice(1:10)
+
+# Combine both for plotting
+top_bottom <- bind_rows(top10, bottom10) %>%
+  mutate(rank_group = ifelse(solution >= 0, "Top 10", "Bottom 10"))
+
+# Create the bar plot
+ggplot(top_bottom, aes(x = reorder(donor_id, solution), y = solution, fill = rank_group)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Top and Bottom 10 Donors by Genetic Merit for White Trait",
+    x = "Donor ID",
+    y = "BLUP (Genetic Merit for White)"
+  ) +
+  scale_fill_manual(values = c("Top 10" = "#377eb8", "Bottom 10" = "#e41a1c")) +
+  theme_minimal()
+
+```
+
+
+
+# cream
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Fix column names and convert to factors - ensure unique IDs
+# Create unique IDs by prefixing with type
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(paste0("D_", donor_id)),
+    dam = ifelse(is.na(dam), NA, paste0("M_", dam)),
+    sire = ifelse(is.na(sire), NA, paste0("F_", sire))
+  )
+
+# Convert to factors
+donor_dat$donor_id <- as.factor(donor_dat$donor_id)
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+# 3. Ensure shell metrics are numeric
+donor_dat$Matched_Donor_Data_DVH_mm <- as.numeric(donor_dat$Matched_Donor_Data_DVH_mm)
+donor_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(donor_dat$Matched_Donor_Data_Shell_Weight_g)
+
+# 4. Create binary traits from Pearl_Grading_Data_Colour
+donor_dat$Cream <- ifelse(grepl("Cream", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 5. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(donor_id),
+    !is.na(Sire) | !is.na(Dam)  # Need at least one parent
+  )
+
+# 6. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(
+    SIRE = ifelse(is.na(SIRE), "0", as.character(SIRE)),
+    DAM = ifelse(is.na(DAM), "0", as.character(DAM))
+  )
+
+# Ensure all IDs are unique and properly formatted
+all_ids <- unique(c(levels(pedind$ID), levels(pedind$SIRE), levels(pedind$DAM)))
+pedind <- pedind %>%
+  mutate(
+    ID = factor(ID, levels = all_ids),
+    SIRE = factor(SIRE, levels = all_ids),
+    DAM = factor(DAM, levels = all_ids)
+  )
+
+# 7. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 8. Fit the animal model
+mod.ind <- asreml(
+  fixed = Cream ~ Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g,
+  random = ~ vm(donor_id, ainv),          # Genetic effect
+  residual = ~ idv(units),                # Independent residuals
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")   # For binary trait
+)
+
+# 9. Update model to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 10. Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 11. Calculate heritability
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # Residual variance on logistic scale
+h2_latent <- Va / (Va + Ve)
+
+# 12. Adjust to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Cream, na.rm = TRUE)  # Fixed to use Cream instead of White
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 13. Print heritability results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# 14. Extract BLUPs (random genetic solutions for each donor)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$prob_cream <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+head(BLUP)
+```
+#cream graphs 
+
+```{r}
+
+
+library(ggplot2)
+library(dplyr)
+
+# Add donor_id as a column from rownames
+BLUP$donor_id <- rownames(BLUP)
+
+# Filter for genetic BLUPs only (exclude any other random effects)
+BLUP_filtered <- BLUP %>%
+  filter(grepl("^vm\\(donor_id", donor_id))
+
+# Clean up donor_id labels
+BLUP_filtered$donor_id <- gsub("vm\\(donor_id, ainv\\)_", "", BLUP_filtered$donor_id)
+
+# Get top 10 and bottom 10 donor BLUPs
+top10 <- BLUP_filtered %>% arrange(desc(solution)) %>% slice(1:10)
+bottom10 <- BLUP_filtered %>% arrange(solution) %>% slice(1:10)
+
+# Combine for plotting
+top_bottom <- bind_rows(top10, bottom10) %>%
+  mutate(rank_group = ifelse(solution >= 0, "Top 10", "Bottom 10"))
+
+# Create bar plot
+ggplot(top_bottom, aes(x = reorder(donor_id, solution), y = solution, fill = rank_group)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Top and Bottom 10 Donors by Genetic Merit for Cream Trait",
+    x = "Donor ID",
+    y = "BLUP (Genetic Merit for Cream)"
+  ) +
+  scale_fill_manual(values = c("Top 10" = "#984ea3", "Bottom 10" = "#ff7f00")) +
+  theme_minimal()
+
+
+
+```
+
+
+
+## champ
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Fix column names and convert to factors - ensure unique IDs
+# Create unique IDs by prefixing with type
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(paste0("D_", donor_id)),
+    dam = ifelse(is.na(dam), NA, paste0("M_", dam)),
+    sire = ifelse(is.na(sire), NA, paste0("F_", sire))
+  )
+
+# Convert to factors
+donor_dat$donor_id <- as.factor(donor_dat$donor_id)
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour
+donor_dat$Champ <- ifelse(grepl("Champ", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id),
+    !is.na(Sire) | !is.na(Dam)  # Need at least one parent
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(
+    SIRE = ifelse(is.na(SIRE), "0", as.character(SIRE)),
+    DAM = ifelse(is.na(DAM), "0", as.character(DAM))
+  )
+
+# Ensure all IDs are unique and properly formatted
+all_ids <- unique(c(levels(pedind$ID), levels(pedind$SIRE), levels(pedind$DAM)))
+pedind <- pedind %>%
+  mutate(
+    ID = factor(ID, levels = all_ids),
+    SIRE = factor(SIRE, levels = all_ids),
+    DAM = factor(DAM, levels = all_ids)
+  )
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Ensure fixed effects are factors
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(
+  donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round
+)
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(
+  donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Flat
+)
+
+# 8. Fit the animal model
+mod.ind <- asreml(
+  fixed = Champ ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),          # Genetic effect
+  residual = ~ idv(units),                # Independent residuals
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")   # For binary trait
+)
+
+# 9. Update model to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 10. Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# 11. Calculate heritability
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # Residual variance on logistic scale
+h2_latent <- Va / (Va + Ve)
+
+# 12. Adjust to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Champ, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 13. Print heritability results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# 14. Extract BLUPs (random genetic solutions for each donor)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+head(BLUP)
+```
+
+
+
+
+
+## champ graphs
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Step 1: Extract donor IDs from rownames
+BLUP$donor_id <- rownames(BLUP)
+
+# Step 2: Filter for donor_id effects only
+BLUP_filtered <- BLUP %>%
+  filter(grepl("^vm\\(donor_id", donor_id))
+
+# Step 3: Clean donor_id names
+BLUP_filtered$donor_id <- gsub("vm\\(donor_id, ainv\\)_", "", BLUP_filtered$donor_id)
+
+# Step 4: Select top 10 and bottom 10 based on genetic merit (BLUP)
+top10 <- BLUP_filtered %>% arrange(desc(solution)) %>% slice(1:10)
+bottom10 <- BLUP_filtered %>% arrange(solution) %>% slice(1:10)
+
+# Step 5: Combine and label groups
+top_bottom <- bind_rows(top10, bottom10) %>%
+  mutate(rank_group = ifelse(solution >= 0, "Top 10", "Bottom 10"))
+
+# Step 6: Plot using ggplot2
+ggplot(top_bottom, aes(x = reorder(donor_id, solution), y = solution, fill = rank_group)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Top and Bottom 10 Donors by Genetic Merit for Champagne Trait",
+    x = "Donor ID",
+    y = "BLUP (Genetic Merit for Champagne)"
+  ) +
+  scale_fill_manual(values = c("Top 10" = "#a65628", "Bottom 10" = "#f781bf")) +
+  theme_minimal()
+
+```
+
+
+
+
 
 
