@@ -2194,5 +2194,137 @@ ggplot(top_bottom, aes(x = reorder(donor_id, solution), y = solution, fill = ran
 
 
 
+## Gold simple
 
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- read_csv("donor_data.csv")
+
+# 2. Format and prefix IDs to distinguish generations
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(paste0("D_", donor_id)),
+    dam = ifelse(is.na(dam), NA, paste0("M_", dam)),
+    sire = ifelse(is.na(sire), NA, paste0("F_", sire))
+  )
+
+# Convert to factors
+donor_dat$donor_id <- as.factor(donor_dat$donor_id)
+donor_dat$Dam <- as.factor(donor_dat$dam)
+donor_dat$Sire <- as.factor(donor_dat$sire)
+
+# 3. Create binary trait for Gold
+donor_dat$Gold <- ifelse(grepl("Gold", donor_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 4. Filter for complete and valid records
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id),
+    !is.na(Sire) | !is.na(Dam)
+  )
+
+# 5. Construct pedigree (distinct individuals only)
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(
+    SIRE = ifelse(is.na(SIRE), "0", as.character(SIRE)),
+    DAM  = ifelse(is.na(DAM), "0", as.character(DAM))
+  )
+
+# Align factor levels across pedigree columns
+all_ids <- unique(c(levels(pedind$ID), levels(pedind$SIRE), levels(pedind$DAM)))
+pedind <- pedind %>%
+  mutate(
+    ID   = factor(ID, levels = all_ids),
+    SIRE = factor(SIRE, levels = all_ids),
+    DAM  = factor(DAM, levels = all_ids)
+  )
+
+# 6. Compute A-inverse matrix
+ainv <- ainverse(pedind)
+
+# 7. Fit ASReml model: Binary Gold trait, no fixed effects
+mod.gold <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update model to ensure convergence
+mod.gold <- update.asreml(mod.gold)
+
+# 9. Extract variance components
+vc <- summary(mod.gold)$varcomp
+print(vc)
+
+# 10. Estimate heritability on latent scale
+Va <- vc["vm(donor_id, ainv)", "component"]
+Ve <- 1  # fixed for logistic
+h2_latent <- Va / (Va + Ve)
+
+# 11. Convert to observed scale using prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print results
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# 13. Extract BLUPs and predicted probabilities
+BLUP <- as.data.frame(summary(mod.gold, coef = TRUE)$coef.random)
+BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+head(BLUP)
+
+```
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Step 1: Extract donor IDs from rownames
+BLUP$donor_id <- rownames(BLUP)
+
+# Step 2: Filter only donor_id effects (exclude units!variance, etc.)
+BLUP_filtered <- BLUP %>%
+  filter(grepl("^vm\\(donor_id", donor_id))
+
+# Step 3: Clean donor_id labels by removing ASReml suffix
+BLUP_filtered$donor_id <- gsub("vm\\(donor_id, ainv\\)_", "", BLUP_filtered$donor_id)
+
+# Step 4: Select top 10 and bottom 10 donors based on BLUP (genetic merit for Gold)
+top10 <- BLUP_filtered %>% arrange(desc(solution)) %>% slice(1:10)
+bottom10 <- BLUP_filtered %>% arrange(solution) %>% slice(1:10)
+
+# Step 5: Combine and label them
+top_bottom <- bind_rows(top10, bottom10) %>%
+  mutate(rank_group = ifelse(solution >= 0, "Top 10", "Bottom 10"))
+
+# Step 6: Plot the BLUP values
+ggplot(top_bottom, aes(x = reorder(donor_id, solution), y = solution, fill = rank_group)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Top and Bottom 10 Donors by Genetic Merit for Gold Trait",
+    x = "Donor ID",
+    y = "BLUP (Genetic Merit for Gold)"
+  ) +
+  scale_fill_manual(values = c("Top 10" = "#ffd92f", "Bottom 10" = "#999999")) +
+  theme_minimal(base_size = 13)
+
+```
 
