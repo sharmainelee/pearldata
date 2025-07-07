@@ -144,7 +144,80 @@ ggplot(top_bottom, aes(x = host_id, y = solution)) +
 ```
 
 
+```{r}
+library(ggplot2)
+library(dplyr)
 
+# 1. Add host_id from rownames
+BLUP$host_id <- rownames(BLUP)
+
+# 2. Filter for host_id effects only
+BLUP_filtered <- BLUP %>%
+  filter(grepl("^vm\\(host_id", host_id)) %>%
+  mutate(
+    host_id = gsub("vm\\(host_id, ainv\\)_", "", host_id),
+    prob_gold = exp(solution) / (1 + exp(solution)),
+    se_prob = (exp(solution) / (1 + exp(solution))^2) * std.error  # delta method approx
+  )
+
+# 3. Top and bottom 10 by probability
+top_bottom <- BLUP_filtered %>%
+  arrange(desc(prob_gold)) %>%
+  slice(c(1:10, (n() - 9):n())) %>%
+  mutate(
+    host_id = factor(host_id, levels = host_id[order(prob_gold)])
+  )
+
+# 4. Plot as dot plot with error bars
+ggplot(top_bottom, aes(x = host_id, y = prob_gold)) +
+  geom_point(aes(color = prob_gold > 0.5), size = 3) +
+  geom_errorbar(aes(ymin = prob_gold - se_prob, ymax = prob_gold + se_prob),
+                width = 0.2, alpha = 0.6) +
+  coord_flip() +
+  scale_color_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Probability of Gold (Observed Scale)",
+    x = "Host ID",
+    y = "Predicted Probability of Gold Pearl"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+ggplot(top_bottom, aes(x = host_id, y = prob_gold)) +
+  geom_segment(aes(xend = host_id, y = 0, yend = prob_gold), color = "grey70") +
+  geom_point(aes(color = prob_gold > 0.5), size = 3) +
+  coord_flip() +
+  scale_color_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Top & Bottom 10 Host Oysters by Probability of Gold (Observed Scale)",
+    x = "Host ID",
+    y = "Predicted Probability"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+top_bottom <- top_bottom %>%
+  mutate(prob_label = paste0(round(prob_gold * 100), "%"))
+
+ggplot(top_bottom, aes(x = host_id, y = solution)) +
+  geom_col(aes(fill = solution > 0), show.legend = FALSE) +
+  geom_text(aes(label = prob_label), hjust = -0.2, size = 3.5) +
+  coord_flip() +
+  scale_fill_manual(values = c("firebrick", "forestgreen")) +
+  labs(
+    title = "Genetic Merit (Latent Scale) with Predicted Probabilities (Observed Scale)",
+    x = "Host ID",
+    y = "BLUP (Latent Scale)"
+  ) +
+  theme_minimal(base_size = 13)
+
+```
 
 
 ## SILVER
@@ -740,8 +813,8 @@ h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
 cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
 cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
 
-## Heritability (latent scale):   0.9715 
-## Heritability (observed scale): 0.1581 
+## Heritability (latent scale):  
+## Heritability (observed scale):
 
 # 11. Extract BLUPs
 BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
