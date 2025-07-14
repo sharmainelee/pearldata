@@ -1,0 +1,506 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-07-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load dataset
+hostdat2 <- read_csv("hostquant.csv")
+
+# 2. Format pedigree and other variables
+hostdat2$offspring_id_host <- as.factor(hostdat2$offspring_id_host)
+hostdat2$dam_host <- as.factor(hostdat2$dam_host)
+hostdat2$sire_host <- as.factor(hostdat2$sire_host)
+
+# Ensure 'pred' and covariates are numeric
+hostdat2$pred <- as.numeric(hostdat2$pred)
+hostdat2$Pearl_Harvest_Data_DVH_mm <- as.numeric(hostdat2$Pearl_Harvest_Data_DVH_mm)
+hostdat2$Pearl_Harvest_Data_APW_mm <- as.numeric(hostdat2$Pearl_Harvest_Data_APW_mm)
+hostdat2$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(hostdat2$Pearl_Harvest_Data_Shell_Weight_g)
+
+# 3. Filter out missing values
+hostdat2_clean <- hostdat2 %>%
+  filter(
+    !is.na(pred),
+    !is.na(offspring_id_host),
+    !is.na(dam_host),
+    !is.na(sire_host),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+  )
+
+# 4. Create pedigree
+ped <- hostdat2_clean %>%
+  select(ID = offspring_id_host, SIRE = sire_host, DAM = dam_host) %>%
+  distinct()
+
+ped <- data.frame(lapply(ped, as.factor))  # Ensure all columns are factors
+
+# 5. Create A-inverse
+ainv <- ainverse(ped)
+
+# 6. Fit animal model for quantitative colour
+mod <- asreml(
+  fixed = pred ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  data = hostdat2_clean
+)
+
+# 7. Update model for convergence
+mod <- update(mod)
+mod <- update(mod)
+
+# 8. Extract variance components
+vc <- summary(mod)$varcomp
+
+Va <- vc["vm(offspring_id_host, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# 9. Calculate heritability
+h2 <- Va / (Va + Ve)
+cat("Heritability of colour (Gold to White):", round(h2, 4), "\n")
+
+# 10. Extract BLUPs (EBVs)
+blups <- as.data.frame(summary(mod, coef = TRUE)$coef.random)
+head(blups)
+
+```
+
+
+
+
+
+
+Assign Colour Classes Based on pred Distribution (No Visual Labels)
+
+
+
+```{r}
+hist(
+  hostdat2$pred,
+  breaks = 50,
+  col = "gold",
+  main = "Distribution of Colour (pred)",
+  xlab = "pred (0 = White, 1 = Gold)"
+)
+
+```
+
+
+
+```{r}
+quantile(hostdat2$pred, probs = seq(0, 1, 0.2), na.rm = TRUE)
+
+```
+
+
+```{r}
+hostdat2$Colour_Class <- cut(
+  hostdat2$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+```
+
+
+```{r}
+table(hostdat2$Colour_Class)
+
+ggplot(hostdat2, aes(x = Colour_Class, fill = Colour_Class)) +
+  geom_bar() +
+  scale_fill_manual(values = c("white", "gray80", "peachpuff", "navajowhite", "gold")) +
+  theme_minimal() +
+  labs(title = "Computer Vision-Based Colour Classification", y = "Count")
+
+```
+
+
+
+```{r}
+hostdat2$is_gold <- ifelse(hostdat2$Colour_Class == "Gold", 1, 0)
+
+```
+
+
+Step-by-Step: ASReml for Colour Class Heritability (Based on pred)
+```{r}
+hostdat2$Colour_Class <- cut(
+  hostdat2$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+```
+
+
+
+```{r}
+hostdat2$is_gold      <- ifelse(hostdat2$Colour_Class == "Gold", 1, 0)
+hostdat2$is_silver    <- ifelse(hostdat2$Colour_Class == "Silver", 1, 0)
+hostdat2$is_cream     <- ifelse(hostdat2$Colour_Class == "Cream", 1, 0)
+hostdat2$is_champagne <- ifelse(hostdat2$Colour_Class == "Champagne", 1, 0)
+hostdat2$is_white     <- ifelse(hostdat2$Colour_Class == "White", 1, 0)
+
+```
+
+
+```{r}
+# Ensure ID columns are factors
+hostdat2$offspring_id_host <- as.factor(hostdat2$offspring_id_host)
+hostdat2$dam_host <- as.factor(hostdat2$dam_host)
+hostdat2$sire_host <- as.factor(hostdat2$sire_host)
+
+
+# Clean missing data
+
+hostdat2_clean <- hostdat2 %>%
+  filter(complete.cases(.))
+
+
+# Create pedigree
+ped <- hostdat2_clean %>%
+  select(ID = offspring_id_host, SIRE = sire_host, DAM = dam_host) %>%
+  distinct()
+
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+```
+
+
+##ignore
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+
+mod_gold <- update(mod_gold)  # Ensure convergence
+
+vc_gold <- summary(mod_gold)$varcomp
+Va_gold <- vc_gold["vm(offspring_id_host, ainv)", "component"]
+Ve_gold <- 1  # For logistic model on latent scale
+h2_gold <- Va_gold / (Va_gold + Ve_gold)
+cat("Gold heritability (latent scale):", round(h2_gold, 4), "\n")
+
+
+
+
+
+
+
+
+
+##ignore
+# Ensure variable is a factor in the right dataset
+hostdat2_clean$First_Op_Data_Saibo_Area <- as.factor(hostdat2_clean$First_Op_Data_Saibo_Area)
+
+# Fit the model
+mod_white <- asreml(
+  fixed = is_white ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+
+# Update and extract variance components
+mod_white <- update(mod_white)
+vc_white <- summary(mod_white)$varcomp
+
+# Extract variance components
+Va_white <- vc_white["vm(offspring_id_host, ainv)", "component"]
+Ve_white <- 1  # Logistic model latent scale
+h2_white <- Va_white / (Va_white + Ve_white)
+
+# Print heritability
+cat("White heritability (latent scale):", round(h2_white, 4), "\n")
+
+
+
+
+
+```{r}
+### GOLD ###
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_gold <- update(mod_gold)
+vc_gold <- summary(mod_gold)$varcomp
+Va_gold <- vc_gold["vm(offspring_id_host, ainv)", "component"]
+Ve_gold <- 1
+h2_gold <- Va_gold / (Va_gold + Ve_gold)
+cat("Gold heritability (latent scale):", round(h2_gold, 4), "\n")
+
+
+### SILVER ###
+mod_silver <- asreml(
+  fixed = is_silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_silver <- update(mod_silver)
+vc_silver <- summary(mod_silver)$varcomp
+Va_silver <- vc_silver["vm(offspring_id_host, ainv)", "component"]
+Ve_silver <- 1
+h2_silver <- Va_silver / (Va_silver + Ve_silver)
+cat("Silver heritability (latent scale):", round(h2_silver, 4), "\n")
+
+
+### CREAM ###
+mod_cream <- asreml(
+  fixed = is_cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_cream <- update(mod_cream)
+vc_cream <- summary(mod_cream)$varcomp
+Va_cream <- vc_cream["vm(offspring_id_host, ainv)", "component"]
+Ve_cream <- 1
+h2_cream <- Va_cream / (Va_cream + Ve_cream)
+cat("Cream heritability (latent scale):", round(h2_cream, 4), "\n")
+
+
+   
+
+
+### CHAMPAGNE ###
+mod_champagne <- asreml(
+  fixed = is_champagne ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_champagne <- update(mod_champagne)
+vc_champagne <- summary(mod_champagne)$varcomp
+Va_champagne <- vc_champagne["vm(offspring_id_host, ainv)", "component"]
+Ve_champagne <- 1
+h2_champagne <- Va_champagne / (Va_champagne + Ve_champagne)
+cat("Champagne heritability (latent scale):", round(h2_champagne, 4), "\n")
+
+
+### WHITE ###
+mod_white <- asreml(
+  fixed = is_white ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_white <- update(mod_white)
+vc_white <- summary(mod_white)$varcomp
+Va_white <- vc_white["vm(offspring_id_host, ainv)", "component"]
+Ve_white <- 1
+h2_white <- Va_white / (Va_white + Ve_white)
+cat("White heritability (latent scale):", round(h2_white, 4), "\n")
+
+```
+
+
+
+
+
+## redo with as.factor for relevant fixed effects 
+
+
+```{r}
+# Convert offspring_id_host to factor once (used in all models)
+hostdat2_clean$offspring_id_host <- as.factor(hostdat2_clean$offspring_id_host)
+
+### GOLD ###
+# Convert fixed effects to numeric if they are not already
+hostdat2_clean$Pearl_Harvest_Data_DVH_mm <- as.numeric(hostdat2_clean$Pearl_Harvest_Data_DVH_mm)
+hostdat2_clean$Pearl_Harvest_Data_APW_mm <- as.numeric(hostdat2_clean$Pearl_Harvest_Data_APW_mm)
+hostdat2_clean$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(hostdat2_clean$Pearl_Harvest_Data_Shell_Weight_g)
+
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_gold <- update(mod_gold)
+vc_gold <- summary(mod_gold)$varcomp
+Va_gold <- vc_gold["vm(offspring_id_host, ainv)", "component"]
+Ve_gold <- 1
+h2_gold <- Va_gold / (Va_gold + Ve_gold)
+cat("Gold heritability (latent scale):", round(h2_gold, 4), "\n")
+
+
+### SILVER ###
+# Convert fixed effects
+hostdat2_clean$First_Op_Data_Nuclei_Size_mm <- as.numeric(hostdat2_clean$First_Op_Data_Nuclei_Size_mm)
+hostdat2_clean$First_Op_Data_Saibo_Area <- as.factor(hostdat2_clean$First_Op_Data_Saibo_Area)
+
+mod_silver <- asreml(
+  fixed = is_silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_silver <- update(mod_silver)
+vc_silver <- summary(mod_silver)$varcomp
+Va_silver <- vc_silver["vm(offspring_id_host, ainv)", "component"]
+Ve_silver <- 1
+h2_silver <- Va_silver / (Va_silver + Ve_silver)
+cat("Silver heritability (latent scale):", round(h2_silver, 4), "\n")
+
+
+### CREAM ###
+# Convert fixed effects
+hostdat2_clean$First_Op_Data_DVH_mm <- as.numeric(hostdat2_clean$First_Op_Data_DVH_mm)
+hostdat2_clean$First_Op_Data_Nuclei_Size_mm <- as.numeric(hostdat2_clean$First_Op_Data_Nuclei_Size_mm)
+
+mod_cream <- asreml(
+  fixed = is_cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_cream <- update(mod_cream)
+vc_cream <- summary(mod_cream)$varcomp
+Va_cream <- vc_cream["vm(offspring_id_host, ainv)", "component"]
+Ve_cream <- 1
+h2_cream <- Va_cream / (Va_cream + Ve_cream)
+cat("Cream heritability (latent scale):", round(h2_cream, 4), "\n")
+
+
+### CHAMPAGNE ###
+# Convert fixed effects
+hostdat2_clean$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.numeric(hostdat2_clean$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+
+mod_champagne <- asreml(
+  fixed = is_champagne ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_champagne <- update(mod_champagne)
+vc_champagne <- summary(mod_champagne)$varcomp
+Va_champagne <- vc_champagne["vm(offspring_id_host, ainv)", "component"]
+Ve_champagne <- 1
+h2_champagne <- Va_champagne / (Va_champagne + Ve_champagne)
+cat("Champagne heritability (latent scale):", round(h2_champagne, 4), "\n")
+
+
+### WHITE ###
+# Convert fixed effects
+hostdat2_clean$Pearl_Harvest_Data_DVH_mm <- as.numeric(hostdat2_clean$Pearl_Harvest_Data_DVH_mm)
+hostdat2_clean$First_Op_Data_Saibo_Area <- as.factor(hostdat2_clean$First_Op_Data_Saibo_Area)
+hostdat2_clean$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(hostdat2_clean$Pearl_Harvest_Data_Shell_Weight_g)
+
+mod_white <- asreml(
+  fixed = is_white ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = hostdat2_clean
+)
+mod_white <- update(mod_white)
+vc_white <- summary(mod_white)$varcomp
+Va_white <- vc_white["vm(offspring_id_host, ainv)", "component"]
+Ve_white <- 1
+h2_white <- Va_white / (Va_white + Ve_white)
+cat("White heritability (latent scale):", round(h2_white, 4), "\n")
+
+```
+
+
+
+
+```{r}
+heritabilities <- data.frame(
+  Colour = c("Gold", "Silver", "Cream", "Champagne", "White"),
+  h2 = c(h2_gold, h2_silver, h2_cream, h2_champagne, h2_white)
+)
+
+print(heritabilities)
+
+```
+
+
+#observed 
+
+```{r}
+# Binary trait already exists: is_gold
+p_gold <- mean(hostdat2_clean$is_gold, na.rm = TRUE)
+z_gold <- qnorm(p_gold)
+phi_gold <- dnorm(z_gold)
+h2_obs_gold <- (h2_gold * phi_gold^2) / (p_gold * (1 - p_gold))
+cat("Gold heritability (observed scale):", round(h2_obs_gold, 4), "\n")
+
+```
+
+```{r}
+# SILVER
+p_silver <- mean(hostdat2_clean$is_silver, na.rm = TRUE)
+z_silver <- qnorm(p_silver)
+phi_silver <- dnorm(z_silver)
+h2_obs_silver <- (h2_silver * phi_silver^2) / (p_silver * (1 - p_silver))
+cat("Silver heritability (observed scale):", round(h2_obs_silver, 4), "\n")
+
+# CREAM
+p_cream <- mean(hostdat2_clean$is_cream, na.rm = TRUE)
+z_cream <- qnorm(p_cream)
+phi_cream <- dnorm(z_cream)
+h2_obs_cream <- (h2_cream * phi_cream^2) / (p_cream * (1 - p_cream))
+cat("Cream heritability (observed scale):", round(h2_obs_cream, 4), "\n")
+
+# CHAMPAGNE
+p_champagne <- mean(hostdat2_clean$is_champagne, na.rm = TRUE)
+z_champagne <- qnorm(p_champagne)
+phi_champagne <- dnorm(z_champagne)
+h2_obs_champagne <- (h2_champagne * phi_champagne^2) / (p_champagne * (1 - p_champagne))
+cat("Champagne heritability (observed scale):", round(h2_obs_champagne, 4), "\n")
+
+# WHITE
+p_white <- mean(hostdat2_clean$is_white, na.rm = TRUE)
+z_white <- qnorm(p_white)
+phi_white <- dnorm(z_white)
+h2_obs_white <- (h2_white * phi_white^2) / (p_white * (1 - p_white))
+cat("White heritability (observed scale):", round(h2_obs_white, 4), "\n")
+
+```
+
+```{r}
+heritabilities <- data.frame(
+  Colour = c("Gold", "Silver", "Cream", "Champagne", "White"),
+  h2_latent = c(h2_gold, h2_silver, h2_cream, h2_champagne, h2_white),
+  h2_observed = c(h2_obs_gold, h2_obs_silver, h2_obs_cream, h2_obs_champagne, h2_obs_white)
+)
+
+print(heritabilities)
+
+```
+
