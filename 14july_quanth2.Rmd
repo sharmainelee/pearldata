@@ -239,6 +239,8 @@ cat("White heritability (latent scale):", round(h2_white, 4), "\n")
 
 
 ```{r}
+
+#ISSUES
 ### GOLD ###
 mod_gold <- asreml(
   fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
@@ -331,6 +333,9 @@ cat("White heritability (latent scale):", round(h2_white, 4), "\n")
 
 
 ```{r}
+
+# WORKS
+
 # Convert offspring_id_host to factor once (used in all models)
 hostdat2_clean$offspring_id_host <- as.factor(hostdat2_clean$offspring_id_host)
 
@@ -377,9 +382,32 @@ cat("Silver heritability (latent scale):", round(h2_silver, 4), "\n")
 
 ### CREAM ###
 # Convert fixed effects
-hostdat2_clean$First_Op_Data_DVH_mm <- as.numeric(hostdat2_clean$First_Op_Data_DVH_mm)
-hostdat2_clean$First_Op_Data_Nuclei_Size_mm <- as.numeric(hostdat2_clean$First_Op_Data_Nuclei_Size_mm)
+#hostdat2_clean$First_Op_Data_DVH_mm <- as.numeric(hostdat2_clean$First_Op_Data_DVH_mm)
+#hostdat2_clean$First_Op_Data_Nuclei_Size_mm <- as.numeric(hostdat2_clean$First_Op_Data_Nuclei_Size_mm)
 
+#mod_cream <- asreml(
+#  fixed = is_cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
+#  random = ~ vm(offspring_id_host, ainv),
+#  residual = ~ idv(units),
+#  family = asr_binomial(link = "logit"),
+#  data = hostdat2_clean
+#)
+#mod_cream <- update(mod_cream)
+#vc_cream <- summary(mod_cream)$varcomp
+#Va_cream <- vc_cream["vm(offspring_id_host, ainv)", "component"]
+#Ve_cream <- 1
+#h2_cream <- Va_cream / (Va_cream + Ve_cream)
+#cat("Cream heritability (latent scale):", round(h2_cream, 4), "\n")
+
+
+# scaled CREAM
+
+### CREAM ###
+# Convert and scale fixed effects
+hostdat2_clean$First_Op_Data_DVH_mm <- scale(as.numeric(hostdat2_clean$First_Op_Data_DVH_mm))
+hostdat2_clean$First_Op_Data_Nuclei_Size_mm <- scale(as.numeric(hostdat2_clean$First_Op_Data_Nuclei_Size_mm))
+
+# Fit ASReml model
 mod_cream <- asreml(
   fixed = is_cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
   random = ~ vm(offspring_id_host, ainv),
@@ -387,12 +415,18 @@ mod_cream <- asreml(
   family = asr_binomial(link = "logit"),
   data = hostdat2_clean
 )
+
+# Update to ensure convergence
 mod_cream <- update(mod_cream)
+
+# Extract variance components
 vc_cream <- summary(mod_cream)$varcomp
 Va_cream <- vc_cream["vm(offspring_id_host, ainv)", "component"]
-Ve_cream <- 1
+Ve_cream <- 1  # Fixed for binomial models (latent scale)
+
+# Calculate heritability
 h2_cream <- Va_cream / (Va_cream + Ve_cream)
-cat("Cream heritability (latent scale):", round(h2_cream, 4), "\n")
+cat("Cream heritability (latent scale, scaled predictors):", round(h2_cream, 4), "\n")
 
 
 ### CHAMPAGNE ###
@@ -504,3 +538,331 @@ print(heritabilities)
 
 ```
 
+
+###
+since you're working with hostquant.csv and pred is a quantitative variable (ranging from 0 = white to 1 = gold), the most appropriate approach is to treat pred as a continuous trait in a linear animal model, not a binary one.
+
+This avoids issues with latent/observed scale heritability and gives you a direct estimate of additive genetic variance for computer vision colour score.
+```{r}
+library(readr)
+library(dplyr)
+library(asreml)
+library(nadiv)
+
+# Load data
+hostdat2 <- read_csv("hostquant.csv")
+
+# Remove rows with missing values in key variables
+hostdat2_clean <- hostdat2 %>%
+  filter(
+    !is.na(pred),
+    !is.na(offspring_id_host),
+    !is.na(sire_host),
+    !is.na(dam_host),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g)
+  )
+
+# Ensure factors
+hostdat2_clean$offspring_id_host <- as.factor(hostdat2_clean$offspring_id_host)
+hostdat2_clean$sire_host <- as.factor(hostdat2_clean$sire_host)
+hostdat2_clean$dam_host <- as.factor(hostdat2_clean$dam_host)
+
+```
+
+2: Create Pedigree and Inverse Matrix
+```{r}
+# Prepare pedigree
+ped <- hostdat2_clean[, c("offspring_id_host", "sire_host", "dam_host")]
+colnames(ped) <- c("ID", "SIRE", "DAM")
+ped <- data.frame(lapply(ped, as.factor))
+
+# Create A-inverse
+ainv <- ainverse(ped)
+
+```
+
+
+Fit Linear Animal Model (for pred)
+```{r}
+# Fit model with continuous 'pred' as response
+mod_pred <- asreml(
+  fixed = pred ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  data = hostdat2_clean
+)
+
+# Update to convergence
+mod_pred <- update(mod_pred)
+
+```
+
+
+4: Extract Variance Components and Estimate Heritability
+
+```{r}
+vc <- summary(mod_pred)$varcomp
+
+# Additive genetic variance (from host ID)
+Va <- vc["vm(offspring_id_host, ainv)", "component"]
+
+# Residual variance
+Ve <- vc["units!R", "component"]
+
+# Heritability
+h2_pred <- Va / (Va + Ve)
+
+cat("Heritability of pred (quantitative colour):", round(h2_pred, 4), "\n")
+
+```
+heritability of pred (quantitative colour) is 0, that means your model is estimating no additive genetic variance — i.e., the trait pred is being explained entirely by residual variance, with no genetic signal in your dataset. 
+
+
+```{r}
+vc <- summary(mod_pred)$varcomp
+
+# Extract correct components
+Va <- vc["vm(offspring_id_host, ainv)", "component"]
+Ve <- vc["units!units", "component"]  # <-- CORRECT
+
+# Observed scale heritability
+h2_pred <- Va / (Va + Ve)
+
+cat("Heritability of pred (quantitative colour, observed scale):", round(h2_pred, 4), "\n")
+
+```
+
+
+```{r}
+
+mod_pred <- update(mod_pred)  # second update to ensure convergence
+
+
+#vpredict(mod_pred, h2 ~ V1 / (V1 + V2),
+        # V1 = "vm(offspring_id_host, ainv)",
+        # V2 = "units!R")
+
+vpredict(mod_pred,
+         h2 ~ V1 / (V1 + V2),
+         V1 = "vm(offspring_id_host, ainv)",
+         V2 = "units!units")
+
+
+```
+
+
+
+BLUP
+
+```{r}
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$logit <- blup_gold$solution
+blup_gold$prob <- exp(blup_gold$logit) / (1 + exp(blup_gold$logit))  # Convert to probability scale
+head(blup_gold)
+
+```
+
+
+
+```{r}
+blup_silver <- as.data.frame(summary(mod_silver, coef = TRUE)$coef.random)
+blup_silver$logit <- blup_silver$solution
+blup_silver$prob <- exp(blup_silver$logit) / (1 + exp(blup_silver$logit))
+head(blup_silver)
+
+```
+
+
+```{r}
+
+
+## scaled
+blup_cream <- as.data.frame(summary(mod_cream, coef = TRUE)$coef.random)
+blup_cream$logit <- blup_cream$solution
+blup_cream$prob <- exp(blup_cream$logit) / (1 + exp(blup_cream$logit))
+head(blup_cream)
+
+```
+
+
+```{r}
+blup_champagne <- as.data.frame(summary(mod_champagne, coef = TRUE)$coef.random)
+blup_champagne$logit <- blup_champagne$solution
+blup_champagne$prob <- exp(blup_champagne$logit) / (1 + exp(blup_champagne$logit))
+head(blup_champagne)
+
+```
+
+
+
+```{r}
+blup_white <- as.data.frame(summary(mod_white, coef = TRUE)$coef.random)
+blup_white$logit <- blup_white$solution
+blup_white$prob <- exp(blup_white$logit) / (1 + exp(blup_white$logit))
+head(blup_white)
+
+```
+
+
+1. Extract and Prepare BLUPs from Each Model
+
+```{r}
+extract_blups <- function(model, colour_name) {
+  blup_df <- as.data.frame(summary(model, coef = TRUE)$coef.random)
+  blup_df$offspring_id_host <- rownames(blup_df)
+  blup_df$colour <- colour_name
+  blup_df <- blup_df[grepl("offspring_id_host", blup_df$offspring_id_host), ]
+  blup_df$EBV <- blup_df$solution
+  blup_df
+}
+
+blup_gold <- extract_blups(mod_gold, "Gold")
+blup_silver <- extract_blups(mod_silver, "Silver")
+blup_cream <- extract_blups(mod_cream, "Cream")
+blup_champagne <- extract_blups(mod_champagne, "Champagne")
+blup_white <- extract_blups(mod_white, "White")
+
+```
+
+Combine and Get Top/Bottom 10 for Each Colour
+```{r}
+library(dplyr)
+
+all_blups <- bind_rows(blup_gold, blup_silver, blup_cream, blup_champagne, blup_white)
+
+top_bottom_blups <- all_blups %>%
+  group_by(colour) %>%
+  arrange(desc(EBV)) %>%
+  slice_head(n = 10) %>%
+  bind_rows(
+    all_blups %>%
+      group_by(colour) %>%
+      arrange(EBV) %>%
+      slice_head(n = 10)
+  ) %>%
+  ungroup()
+
+```
+
+
+```{r}
+library(ggplot2)
+
+ggplot(top_bottom_blups, aes(x = reorder(offspring_id_host, EBV), y = EBV, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~colour, scales = "free") +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 EBVs (BLUPs) per Colour Class",
+       x = "Offspring ID",
+       y = "Estimated Breeding Value (EBV)") +
+  theme_minimal(base_size = 12)
+
+```
+
+
+```{r}
+blup_matrix <- all_blups %>%
+  select(offspring_id_host, colour, EBV) %>%
+  tidyr::pivot_wider(names_from = colour, values_from = EBV)
+
+head(blup_matrix)
+
+```
+
+
+
+
+
+
+#
+
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+
+```{r}
+top_gold <- top_bottom_blups %>% filter(colour == "Gold")
+
+ggplot(top_gold, aes(x = reorder(offspring_id_host, EBV), y = EBV, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 EBVs - Gold",
+       x = "Offspring ID",
+       y = "Estimated Breeding Value (EBV)") +
+  theme_minimal(base_size = 12)
+
+```
+
+
+
+```{r}
+top_silver <- top_bottom_blups %>% filter(colour == "Silver")
+
+ggplot(top_silver, aes(x = reorder(offspring_id_host, EBV), y = EBV, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 EBVs - Silver",
+       x = "Offspring ID",
+       y = "Estimated Breeding Value (EBV)") +
+  theme_minimal(base_size = 12)
+
+```
+
+
+
+```{r}
+top_cream <- top_bottom_blups %>% filter(colour == "Cream")
+
+ggplot(top_cream, aes(x = reorder(offspring_id_host, EBV), y = EBV, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 EBVs - Cream",
+       x = "Offspring ID",
+       y = "Estimated Breeding Value (EBV)") +
+  theme_minimal(base_size = 12)
+
+```
+
+
+```{r}
+top_champagne <- top_bottom_blups %>% filter(colour == "Champagne")
+
+ggplot(top_champagne, aes(x = reorder(offspring_id_host, EBV), y = EBV, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 EBVs - Champagne",
+       x = "Offspring ID",
+       y = "Estimated Breeding Value (EBV)") +
+  theme_minimal(base_size = 12)
+
+```
+
+
+
+```{r}
+top_white <- top_bottom_blups %>% filter(colour == "White")
+
+ggplot(top_white, aes(x = reorder(offspring_id_host, EBV), y = EBV, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 EBVs - White",
+       x = "Offspring ID",
+       y = "Estimated Breeding Value (EBV)") +
+  theme_minimal(base_size = 12)
+
+```
+
+
+# my qn are what to do for the genetic part with the dna stuff
+# i found the heritability estimates for both human sight and computer vision methods, what next? is my graph useful?
+
+# and effectiveness of
+quantitative measures (e.g., RGB) vs.
+qualitative (categorical) scoring systems
+for pearl colour classification.
+
+# how to do GRM
