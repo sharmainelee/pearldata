@@ -866,3 +866,1644 @@ qualitative (categorical) scoring systems
 for pearl colour classification.
 
 # how to do GRM
+
+
+# done host, now do donorand summarise and compare tmr 
+
+
+
+
+
+## 15 July DONOR QUANT
+
+Donor-Based Animal Models in ASReml-R
+
+
+```{r}
+
+## ISSUES 
+
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat2 <- read_csv("donorquant.csv")
+
+# 2. Ensure IDs and pedigree info are present and drop NAs
+donor_dat2 <- donor_dat2 %>%
+  filter(!is.na(pred), !is.na(offspring_id_donor), !is.na(sire_donor), !is.na(dam_donor)) %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    sire_donor = as.factor(sire_donor),
+    dam_donor = as.factor(dam_donor)
+  )
+
+# 3. Build pedigree (unique individuals only)
+ped <- donor_dat2 %>%
+  distinct(offspring_id_donor, sire_donor, dam_donor) %>%
+  rename(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+
+# 4. Ensure pedigree is complete
+ped <- prepPed(ped)
+
+# 5. Create inverse relationship matrix
+ainv <- makeAinv(ped)$Ainv
+
+# 6. Filter dataset to match pedigree IDs
+valid_ids <- rownames(ainv)
+donor_dat2 <- donor_dat2 %>%
+  filter(offspring_id_donor %in% valid_ids)
+
+# 7. Drop unused factor levels (important!)
+donor_dat2$offspring_id_donor <- droplevels(donor_dat2$offspring_id_donor)
+
+# 8. Fit animal model (quantitative trait: pred)
+mod_pred <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_gaussian(),
+  data = donor_dat2
+)
+
+# 9. Update for convergence
+mod_pred <- update(mod_pred)
+
+# 10. Extract variance components
+vc <- summary(mod_pred)$varcomp
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+h2_pred <- Va / (Va + Ve)
+
+# 11. Print heritability
+cat("Heritability of computer-vision colour (pred):", round(h2_pred, 4), "\n")
+
+```
+
+
+
+
+```{r}
+# Load libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load data
+donor_dat2 <- read_csv("donorquant.csv")
+
+# Filter for complete pedigree
+donor_dat2 <- donor_dat2 %>%
+  filter(!is.na(offspring_id_donor), !is.na(dam_donor), !is.na(sire_donor))
+
+# Convert IDs to factors
+donor_dat2 <- donor_dat2 %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    dam_donor = as.factor(dam_donor),
+    sire_donor = as.factor(sire_donor)
+  )
+
+# Create Colour_Class from pred
+donor_dat2$Colour_Class <- cut(
+  donor_dat2$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+# Create binary traits for each class
+donor_dat2 <- donor_dat2 %>%
+  mutate(
+    is_white     = ifelse(Colour_Class == "White", 1, 0),
+    is_silver    = ifelse(Colour_Class == "Silver", 1, 0),
+    is_cream     = ifelse(Colour_Class == "Cream", 1, 0),
+    is_champagne = ifelse(Colour_Class == "Champagne", 1, 0),
+    is_gold      = ifelse(Colour_Class == "Gold", 1, 0)
+  )
+
+# Build pedigree
+ped <- donor_dat2 %>%
+  distinct(offspring_id_donor, sire_donor, dam_donor) %>%
+  rename(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- prepPed(ped)
+ainv <- makeAinv(ped)$Ainv
+
+# Filter data to match pedigree and drop unused factor levels
+valid_ids <- rownames(ainv)
+donor_dat2 <- donor_dat2 %>%
+  filter(offspring_id_donor %in% valid_ids)
+donor_dat2$offspring_id_donor <- droplevels(donor_dat2$offspring_id_donor)
+
+```
+
+
+
+
+
+##
+```{r}
+# Load libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat2 <- read_csv("donorquant.csv")
+
+# Filter complete pedigree
+donor_dat2 <- donor_dat2 %>%
+  filter(!is.na(offspring_id_donor), !is.na(dam_donor), !is.na(sire_donor))
+
+# Convert to factors
+donor_dat2 <- donor_dat2 %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    dam_donor = as.factor(dam_donor),
+    sire_donor = as.factor(sire_donor)
+  )
+
+# Build pedigree and A-inverse matrix
+ped <- donor_dat2 %>%
+  distinct(offspring_id_donor, sire_donor, dam_donor) %>%
+  rename(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+
+ped <- prepPed(ped)
+ainv <- makeAinv(ped)$Ainv
+
+# Filter donor data to match pedigree
+valid_ids <- rownames(ainv)
+donor_dat2 <- donor_dat2 %>%
+  filter(offspring_id_donor %in% valid_ids)
+donor_dat2$offspring_id_donor <- droplevels(donor_dat2$offspring_id_donor)
+
+# Fit ASReml animal model for continuous pred
+mod_pred <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat2
+)
+
+mod_pred <- update(mod_pred)
+
+# Extract variance components
+vc <- summary(mod_pred)$varcomp
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Heritability (h²) on observed scale
+h2 <- Va / (Va + Ve)
+cat("Heritability estimate (observed scale):", round(h2, 4), "\n")
+
+# Extract BLUPs
+blup <- as.data.frame(summary(mod_pred, coef = TRUE)$coef.random)
+blup$offspring_id_donor <- sub(".*offspring_id_donor, ainv\\)_", "", rownames(blup))
+colnames(blup)[1] <- "EBV"
+head(blup)
+
+```
+
+
+
+
+#
+```{r}
+# Load packages 
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(tibble)
+
+# Load and prepare data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor), !is.na(dam_donor), !is.na(sire_donor)) %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    dam_donor = as.factor(dam_donor),
+    sire_donor = as.factor(sire_donor)
+  )
+
+# Generate Colour_Class from pred
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+donor_dat <- donor_dat %>% mutate(
+  is_gold      = ifelse(Colour_Class == "Gold", 1, 0),
+  is_silver    = ifelse(Colour_Class == "Silver", 1, 0),
+  is_cream     = ifelse(Colour_Class == "Cream", 1, 0),
+  is_champagne = ifelse(Colour_Class == "Champagne", 1, 0),
+  is_white     = ifelse(Colour_Class == "White", 1, 0)
+)
+
+# Pedigree
+donor_dat_clean <- donor_dat %>% filter(complete.cases(.))
+ped <- donor_dat_clean %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor) %>%
+  distinct() %>%
+  data.frame(lapply(., as.factor))
+ainv <- ainverse(ped)
+
+donor_dat_clean$offspring_id_donor <- as.factor(donor_dat_clean$offspring_id_donor)
+
+# GOLD model
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+vc_gold <- summary(mod_gold)$varcomp
+Va_gold <- vc_gold["vm(offspring_id_donor, ainv)", "component"]
+Ve_gold <- 1
+h2_gold <- Va_gold / (Va_gold + Ve_gold)
+
+# Repeat for other colour classes (Silver, Cream, Champagne, White)
+# ... (Similar model blocks for mod_silver, mod_cream, etc.)
+
+# Calculate observed scale heritability
+p_gold <- mean(donor_dat_clean$is_gold, na.rm = TRUE)
+z_gold <- qnorm(p_gold)
+phi_gold <- dnorm(z_gold)
+h2_obs_gold <- (h2_gold * phi_gold^2) / (p_gold * (1 - p_gold))
+
+# Print
+cat("Gold heritability (latent scale):", round(h2_gold, 4), "\n")
+cat("Gold heritability (observed scale):", round(h2_obs_gold, 4), "\n")
+
+#Gold heritability (latent scale): 0.908 
+#Gold heritability (observed scale): 0.1448 
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$logit <- blup_gold$solution
+blup_gold$prob <- exp(blup_gold$logit) / (1 + exp(blup_gold$logit))
+head(blup_gold)
+
+```
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class based on computer vision prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+donor_dat$is_gold <- ifelse(donor_dat$Colour_Class == "Gold", 1, 0)
+donor_dat$is_silver <- ifelse(donor_dat$Colour_Class == "Silver", 1, 0)
+donor_dat$is_cream <- ifelse(donor_dat$Colour_Class == "Cream", 1, 0)
+donor_dat$is_champagne <- ifelse(donor_dat$Colour_Class == "Champagne", 1, 0)
+donor_dat$is_white <- ifelse(donor_dat$Colour_Class == "White", 1, 0)
+
+# Clean complete cases for modeling
+donor_clean <- donor_dat %>% filter(complete.cases(.))
+
+# Create pedigree and A-inverse
+ped <- donor_clean %>%
+  select(ID = offspring_id_donor, DAM = dam_donor, SIRE = sire_donor) %>%
+  distinct() %>%
+  mutate(across(everything(), as.factor))
+ainv <- ainverse(ped)
+
+```
+
+
+```{r}
+# GOLD model
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_gold <- update(mod_gold)
+vc_gold <- summary(mod_gold)$varcomp
+print(vc_gold)
+Va_gold <- vc_gold["vm(offspring_id_donor, ainv)", "component"]
+Ve_gold <- 1
+h2_gold <- Va_gold / (Va_gold + Ve_gold)
+cat("Gold heritability (latent scale):", round(h2_gold, 4), "\n")
+```
+
+
+
+```{r}
+
+# SILVER model
+mod_silver <- asreml(
+  fixed = is_silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_silver <- update(mod_silver)
+vc_silver <- summary(mod_silver)$varcomp
+print(vc_silver)
+Va_silver <- vc_silver["vm(offspring_id_donor, ainv)", "component"]
+Ve_silver <- 1
+h2_silver <- Va_silver / (Va_silver + Ve_silver)
+cat("Silver heritability (latent scale):", round(h2_silver, 4), "\n")
+```
+
+
+```{r}
+# CREAM model
+mod_cream <- asreml(
+  fixed = is_cream ~ scale(First_Op_Data_DVH_mm) + scale(First_Op_Data_Nuclei_Size_mm),
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_cream <- update(mod_cream)
+vc_cream <- summary(mod_cream)$varcomp
+print(vc_cream)
+Va_cream <- vc_cream["vm(offspring_id_donor, ainv)", "component"]
+Ve_cream <- 1
+h2_cream <- Va_cream / (Va_cream + Ve_cream)
+cat("Cream heritability (latent scale):", round(h2_cream, 4), "\n")
+```
+
+```{r}
+# CHAMPAGNE model
+mod_champagne <- asreml(
+  fixed = is_champagne ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_champagne <- update(mod_champagne)
+vc_champagne <- summary(mod_champagne)$varcomp
+print(vc_champagne)
+Va_champagne <- vc_champagne["vm(offspring_id_donor, ainv)", "component"]
+Ve_champagne <- 1
+h2_champagne <- Va_champagne / (Va_champagne + Ve_champagne)
+cat("Champagne heritability (latent scale):", round(h2_champagne, 4), "\n")
+```
+
+
+```{r}
+# WHITE model
+mod_white <- asreml(
+  fixed = is_white ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_white <- update(mod_white)
+vc_white <- summary(mod_white)$varcomp
+print(vc_white)
+Va_white <- vc_white["vm(offspring_id_donor, ainv)", "component"]
+Ve_white <- 1
+h2_white <- Va_white / (Va_white + Ve_white)
+cat("White heritability (latent scale):", round(h2_white, 4), "\n")
+
+```
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(stats)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class based on computer vision prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+donor_dat$is_gold <- ifelse(donor_dat$Colour_Class == "Gold", 1, 0)
+donor_dat$is_silver <- ifelse(donor_dat$Colour_Class == "Silver", 1, 0)
+donor_dat$is_cream <- ifelse(donor_dat$Colour_Class == "Cream", 1, 0)
+donor_dat$is_champagne <- ifelse(donor_dat$Colour_Class == "Champagne", 1, 0)
+donor_dat$is_white <- ifelse(donor_dat$Colour_Class == "White", 1, 0)
+
+# Clean complete cases for modeling
+donor_clean <- donor_dat %>% filter(complete.cases(.))
+
+# Create pedigree and A-inverse
+ped <- donor_clean %>%
+  select(ID = offspring_id_donor, DAM = dam_donor, SIRE = sire_donor) %>%
+  distinct() %>%
+  mutate(across(everything(), as.factor))
+ainv <- ainverse(ped)
+
+calculate_h2_and_blup <- function(model, trait, data) {
+  model <- update(model)
+  vc <- summary(model)$varcomp
+  print(vc)
+  Va <- vc[paste0("vm(offspring_id_donor, ainv)"), "component"]
+  Ve <- 1
+  h2_latent <- Va / (Va + Ve)
+  cat(trait, "heritability (latent scale):", round(h2_latent, 4), "\n")
+
+  p <- mean(data[[trait]], na.rm = TRUE)
+  z <- qnorm(p)
+  phi <- dnorm(z)
+  h2_obs <- (h2_latent * phi^2) / (p * (1 - p))
+  cat(trait, "heritability (observed scale):", round(h2_obs, 4), "\n")
+
+  blup <- as.data.frame(summary(model, coef = TRUE)$coef.random)
+  blup$logit <- blup$solution
+  blup$prob <- exp(blup$logit) / (1 + exp(blup$logit))
+  head(blup)
+}
+
+# GOLD
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+calculate_h2_and_blup(mod_gold, "is_gold", donor_clean)
+
+# SILVER
+mod_silver <- asreml(
+  fixed = is_silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+calculate_h2_and_blup(mod_silver, "is_silver", donor_clean)
+
+# CREAM
+mod_cream <- asreml(
+  fixed = is_cream ~ scale(First_Op_Data_DVH_mm) + scale(First_Op_Data_Nuclei_Size_mm),
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+calculate_h2_and_blup(mod_cream, "is_cream", donor_clean)
+
+# CHAMPAGNE
+mod_champagne <- asreml(
+  fixed = is_champagne ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+calculate_h2_and_blup(mod_champagne, "is_champagne", donor_clean)
+
+# WHITE
+mod_white <- asreml(
+  fixed = is_white ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+calculate_h2_and_blup(mod_white, "is_white", donor_clean)
+
+```
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(stats)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class based on computer vision prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+donor_dat$is_gold <- ifelse(donor_dat$Colour_Class == "Gold", 1, 0)
+donor_dat$is_silver <- ifelse(donor_dat$Colour_Class == "Silver", 1, 0)
+donor_dat$is_cream <- ifelse(donor_dat$Colour_Class == "Cream", 1, 0)
+donor_dat$is_champagne <- ifelse(donor_dat$Colour_Class == "Champagne", 1, 0)
+donor_dat$is_white <- ifelse(donor_dat$Colour_Class == "White", 1, 0)
+
+# Clean complete cases for modeling
+donor_clean <- donor_dat %>% filter(complete.cases(.))
+
+# Create pedigree and A-inverse
+ped <- donor_clean %>%
+  select(ID = offspring_id_donor, DAM = dam_donor, SIRE = sire_donor) %>%
+  distinct() %>%
+  mutate(across(everything(), as.factor))
+ainv <- ainverse(ped)
+```
+
+
+```{r}
+### GOLD ###
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_gold <- update(mod_gold)
+vc_gold <- summary(mod_gold)$varcomp
+print(vc_gold)
+Va_gold <- vc_gold["vm(offspring_id_donor, ainv)", "component"]
+Ve_gold <- 1
+h2_gold_latent <- Va_gold / (Va_gold + Ve_gold)
+p_gold <- mean(donor_clean$is_gold, na.rm = TRUE)
+z_gold <- qnorm(p_gold)
+phi_gold <- dnorm(z_gold)
+h2_gold_obs <- (h2_gold_latent * phi_gold^2) / (p_gold * (1 - p_gold))
+cat("Gold h2 latent:", round(h2_gold_latent, 4), "\n")
+cat("Gold h2 observed:", round(h2_gold_obs, 4), "\n")
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$prob <- exp(blup_gold$solution) / (1 + exp(blup_gold$solution))
+```
+
+
+```{r}
+### SILVER ###
+mod_silver <- asreml(
+  fixed = is_silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_silver <- update(mod_silver)
+vc_silver <- summary(mod_silver)$varcomp
+print(vc_silver)
+Va_silver <- vc_silver["vm(offspring_id_donor, ainv)", "component"]
+Ve_silver <- 1
+h2_silver_latent <- Va_silver / (Va_silver + Ve_silver)
+p_silver <- mean(donor_clean$is_silver, na.rm = TRUE)
+z_silver <- qnorm(p_silver)
+phi_silver <- dnorm(z_silver)
+h2_silver_obs <- (h2_silver_latent * phi_silver^2) / (p_silver * (1 - p_silver))
+cat("Silver h2 latent:", round(h2_silver_latent, 4), "\n")
+cat("Silver h2 observed:", round(h2_silver_obs, 4), "\n")
+blup_silver <- as.data.frame(summary(mod_silver, coef = TRUE)$coef.random)
+blup_silver$prob <- exp(blup_silver$solution) / (1 + exp(blup_silver$solution))
+```
+
+```{r}
+### CREAM ###
+mod_cream <- asreml(
+  fixed = is_cream ~ scale(First_Op_Data_DVH_mm) + scale(First_Op_Data_Nuclei_Size_mm),
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_cream <- update(mod_cream)
+vc_cream <- summary(mod_cream)$varcomp
+print(vc_cream)
+Va_cream <- vc_cream["vm(offspring_id_donor, ainv)", "component"]
+Ve_cream <- 1
+h2_cream_latent <- Va_cream / (Va_cream + Ve_cream)
+p_cream <- mean(donor_clean$is_cream, na.rm = TRUE)
+z_cream <- qnorm(p_cream)
+phi_cream <- dnorm(z_cream)
+h2_cream_obs <- (h2_cream_latent * phi_cream^2) / (p_cream * (1 - p_cream))
+cat("Cream h2 latent:", round(h2_cream_latent, 4), "\n")
+cat("Cream h2 observed:", round(h2_cream_obs, 4), "\n")
+blup_cream <- as.data.frame(summary(mod_cream, coef = TRUE)$coef.random)
+blup_cream$prob <- exp(blup_cream$solution) / (1 + exp(blup_cream$solution))
+```
+
+```{r}
+### CHAMPAGNE ###
+mod_champagne <- asreml(
+  fixed = is_champagne ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_champagne <- update(mod_champagne)
+vc_champagne <- summary(mod_champagne)$varcomp
+print(vc_champagne)
+Va_champagne <- vc_champagne["vm(offspring_id_donor, ainv)", "component"]
+Ve_champagne <- 1
+h2_champagne_latent <- Va_champagne / (Va_champagne + Ve_champagne)
+p_champagne <- mean(donor_clean$is_champagne, na.rm = TRUE)
+z_champagne <- qnorm(p_champagne)
+phi_champagne <- dnorm(z_champagne)
+h2_champagne_obs <- (h2_champagne_latent * phi_champagne^2) / (p_champagne * (1 - p_champagne))
+cat("Champagne h2 latent:", round(h2_champagne_latent, 4), "\n")
+cat("Champagne h2 observed:", round(h2_champagne_obs, 4), "\n")
+blup_champagne <- as.data.frame(summary(mod_champagne, coef = TRUE)$coef.random)
+blup_champagne$prob <- exp(blup_champagne$solution) / (1 + exp(blup_champagne$solution))
+```
+
+```{r}
+### WHITE ###
+mod_white <- asreml(
+  fixed = is_white ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_clean
+)
+mod_white <- update(mod_white)
+vc_white <- summary(mod_white)$varcomp
+print(vc_white)
+Va_white <- vc_white["vm(offspring_id_donor, ainv)", "component"]
+Ve_white <- 1
+h2_white_latent <- Va_white / (Va_white + Ve_white)
+p_white <- mean(donor_clean$is_white, na.rm = TRUE)
+z_white <- qnorm(p_white)
+phi_white <- dnorm(z_white)
+h2_white_obs <- (h2_white_latent * phi_white^2) / (p_white * (1 - p_white))
+cat("White h2 latent:", round(h2_white_latent, 4), "\n")
+cat("White h2 observed:", round(h2_white_obs, 4), "\n")
+blup_white <- as.data.frame(summary(mod_white, coef = TRUE)$coef.random)
+blup_white$prob <- exp(blup_white$solution) / (1 + exp(blup_white$solution))
+
+```
+
+
+
+
+
+```{r}
+
+
+## WORKS
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(stats)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class based on computer vision prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+donor_dat$is_silver <- ifelse(donor_dat$Colour_Class == "Silver", 1, 0)
+
+# Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(is_silver),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(offspring_id_donor),
+    !is.na(sire_donor),
+    !is.na(dam_donor)
+  )
+
+# Create a pedigree with unique donor IDs only
+ped <- donor_dat_clean %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+
+ped <- data.frame(lapply(ped, as.factor))
+
+# Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(ped)
+
+# Ensure saibo area is a factor (if used in fixed effects)
+donor_dat_clean$First_Op_Data_Saibo_Area <- as.factor(donor_dat_clean$First_Op_Data_Saibo_Area)
+
+# Fit the animal model
+mod_silver <- asreml(
+  fixed = is_silver ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = donor_dat_clean
+)
+
+# Update and extract variance components
+mod_silver <- update(mod_silver)
+summary(mod_silver)$varcomp
+
+# Update model again to ensure convergence
+mod_silver <- update(mod_silver)
+
+# Extract variance components manually
+vc <- summary(mod_silver)$varcomp
+print(vc)
+
+# Calculate heritability (latent scale)
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- 1  # Residual variance for logistic models
+h2_latent <- Va / (Va + Ve)
+
+# Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$is_silver, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print heritability estimates
+cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+
+# Extract BLUPs
+actual_ids <- unique(donor_dat_clean$offspring_id_donor)
+
+BLUP <- as.data.frame(summary(mod_silver, coef = TRUE)$coef.random)
+BLUP$offspring_id_donor <- sub(".*offspring_id_donor, ainv\\)_", "", rownames(BLUP))
+
+BLUP <- BLUP %>% filter(offspring_id_donor %in% actual_ids)
+BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(stats)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class based on computer vision prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+# Define binary variables for each class
+donor_dat$is_gold      <- ifelse(donor_dat$Colour_Class == "Gold", 1, 0)
+donor_dat$is_silver    <- ifelse(donor_dat$Colour_Class == "Silver", 1, 0)
+donor_dat$is_cream     <- ifelse(donor_dat$Colour_Class == "Cream", 1, 0)
+donor_dat$is_champagne <- ifelse(donor_dat$Colour_Class == "Champagne", 1, 0)
+donor_dat$is_white     <- ifelse(donor_dat$Colour_Class == "White", 1, 0)
+
+# Create a pedigree with unique donor IDs only
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+### GOLD ###
+dat_gold <- donor_dat %>% filter(!is.na(is_gold))
+dat_gold$Pearl_Harvest_Data_DVH_mm <- as.numeric(dat_gold$Pearl_Harvest_Data_DVH_mm)
+dat_gold$Pearl_Harvest_Data_APW_mm <- as.numeric(dat_gold$Pearl_Harvest_Data_APW_mm)
+dat_gold$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(dat_gold$Pearl_Harvest_Data_Shell_Weight_g)
+
+mod_gold <- asreml(
+  fixed = is_gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = dat_gold
+)
+mod_gold <- update(mod_gold)
+vc_gold <- summary(mod_gold)$varcomp
+Va <- vc_gold["vm(offspring_id_donor, ainv)", "component"]
+Ve <- 1
+h2_latent <- Va / (Va + Ve)
+p <- mean(dat_gold$is_gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+cat("Gold - Latent:", round(h2_latent, 4), "Observed:", round(h2_obs, 4), "\n")
+
+### SILVER ###
+dat_silver <- donor_dat %>% filter(!is.na(is_silver))
+dat_silver$Pearl_Harvest_Data_DVH_mm <- as.numeric(dat_silver$Pearl_Harvest_Data_DVH_mm)
+mod_silver <- asreml(
+  fixed = is_silver ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = dat_silver
+)
+mod_silver <- update(mod_silver)
+vc_silver <- summary(mod_silver)$varcomp
+Va <- vc_silver["vm(offspring_id_donor, ainv)", "component"]
+p <- mean(dat_silver$is_silver, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_latent <- Va / (Va + Ve)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+cat("Silver - Latent:", round(h2_latent, 4), "Observed:", round(h2_obs, 4), "\n")
+
+### CREAM ###
+dat_cream <- donor_dat %>% filter(!is.na(is_cream))
+dat_cream$First_Op_Data_DVH_mm <- scale(as.numeric(dat_cream$First_Op_Data_DVH_mm))
+dat_cream$First_Op_Data_Nuclei_Size_mm <- scale(as.numeric(dat_cream$First_Op_Data_Nuclei_Size_mm))
+mod_cream <- asreml(
+  fixed = is_cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = dat_cream
+)
+mod_cream <- update(mod_cream)
+vc_cream <- summary(mod_cream)$varcomp
+Va <- vc_cream["vm(offspring_id_donor, ainv)", "component"]
+p <- mean(dat_cream$is_cream, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_latent <- Va / (Va + Ve)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+cat("Cream - Latent:", round(h2_latent, 4), "Observed:", round(h2_obs, 4), "\n")
+
+### CHAMPAGNE ###
+dat_champ <- donor_dat %>% filter(!is.na(is_champagne))
+dat_champ$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.numeric(dat_champ$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+mod_champ <- asreml(
+  fixed = is_champagne ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = dat_champ
+)
+mod_champ <- update(mod_champ)
+vc_champ <- summary(mod_champ)$varcomp
+Va <- vc_champ["vm(offspring_id_donor, ainv)", "component"]
+p <- mean(dat_champ$is_champagne, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_latent <- Va / (Va + Ve)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+cat("Champagne - Latent:", round(h2_latent, 4), "Observed:", round(h2_obs, 4), "\n")
+
+### WHITE ###
+dat_white <- donor_dat %>% filter(!is.na(is_white))
+dat_white$Pearl_Harvest_Data_DVH_mm <- as.numeric(dat_white$Pearl_Harvest_Data_DVH_mm)
+dat_white$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(dat_white$Pearl_Harvest_Data_Shell_Weight_g)
+mod_white <- asreml(
+  fixed = is_white ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  family = asr_binomial(link = "logit"),
+  data = dat_white
+)
+mod_white <- update(mod_white)
+vc_white <- summary(mod_white)$varcomp
+Va <- vc_white["vm(offspring_id_donor, ainv)", "component"]
+p <- mean(dat_white$is_white, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_latent <- Va / (Va + Ve)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+cat("White - Latent:", round(h2_latent, 4), "Observed:", round(h2_obs, 4), "\n")
+
+```
+
+
+
+##is.na 
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(stats)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class from prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+# Create binary indicators for each colour class
+donor_dat <- donor_dat %>% mutate(
+  is_gold = ifelse(Colour_Class == "Gold", 1, 0),
+  is_silver = ifelse(Colour_Class == "Silver", 1, 0),
+  is_cream = ifelse(Colour_Class == "Cream", 1, 0),
+  is_champagne = ifelse(Colour_Class == "Champagne", 1, 0),
+  is_white = ifelse(Colour_Class == "White", 1, 0)
+)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Helper function to fit model and extract h2 and BLUPs
+fit_model <- function(data, response, fixed_effects) {
+  data <- data %>% filter(complete.cases(select(., all_of(c(response, fixed_effects, "offspring_id_donor")))))
+  mod <- asreml(
+    fixed = as.formula(paste(response, "~", paste(fixed_effects, collapse = "+"))),
+    random = ~ vm(offspring_id_donor, ainv),
+    residual = ~ idv(units),
+    family = asr_binomial(link = "logit"),
+    data = data
+  )
+  mod <- update(mod)
+  vc <- summary(mod)$varcomp
+  Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+  Ve <- 1
+  h2_latent <- Va / (Va + Ve)
+  p <- mean(data[[response]], na.rm = TRUE)
+  z <- qnorm(p)
+  phi_z <- dnorm(z)
+  h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+  blup <- as.data.frame(summary(mod, coef = TRUE)$coef.random)
+  blup$logit <- blup$solution
+  blup$prob <- exp(blup$logit) / (1 + exp(blup$logit))
+  list(h2_latent = h2_latent, h2_obs = h2_obs, blup = blup, varcomp = vc)
+}
+
+# GOLD
+res_gold <- fit_model(donor_dat, "is_gold", c("Pearl_Harvest_Data_DVH_mm", "Pearl_Harvest_Data_APW_mm", "Pearl_Harvest_Data_Shell_Weight_g"))
+cat("Gold - Latent:", round(res_gold$h2_latent, 4), "Observed:", round(res_gold$h2_obs, 4), "\n")
+print(res_gold$varcomp)
+head(res_gold$blup)
+
+# SILVER
+res_silver <- fit_model(donor_dat, "is_silver", c("First_Op_Data_Nuclei_Size_mm", "First_Op_Data_Saibo_Area"))
+cat("Silver - Latent:", round(res_silver$h2_latent, 4), "Observed:", round(res_silver$h2_obs, 4), "\n")
+print(res_silver$varcomp)
+head(res_silver$blup)
+
+# CREAM
+res_cream <- fit_model(donor_dat, "is_cream", c("First_Op_Data_DVH_mm", "First_Op_Data_Nuclei_Size_mm"))
+cat("Cream - Latent:", round(res_cream$h2_latent, 4), "Observed:", round(res_cream$h2_obs, 4), "\n")
+print(res_cream$varcomp)
+head(res_cream$blup)
+
+# CHAMPAGNE
+res_champagne <- fit_model(donor_dat, "is_champagne", c("Pearl_Harvest_Data_Days_of_Pearl_Culture"))
+cat("Champagne - Latent:", round(res_champagne$h2_latent, 4), "Observed:", round(res_champagne$h2_obs, 4), "\n")
+print(res_champagne$varcomp)
+head(res_champagne$blup)
+
+# WHITE
+res_white <- fit_model(donor_dat, "is_white", c("Pearl_Harvest_Data_DVH_mm", "First_Op_Data_Saibo_Area", "Pearl_Harvest_Data_Shell_Weight_g"))
+cat("White - Latent:", round(res_white$h2_latent, 4), "Observed:", round(res_white$h2_obs, 4), "\n")
+print(res_white$varcomp)
+head(res_white$blup)
+
+```
+
+
+
+```{r}
+# Summary table of heritability estimates
+heritabilities <- data.frame(
+  Colour = c("Gold", "Silver", "Cream", "Champagne", "White"),
+  h2_latent = c(
+    round(res_gold$h2_latent, 4),
+    round(res_silver$h2_latent, 4),
+    round(res_cream$h2_latent, 4),
+    round(res_champagne$h2_latent, 4),
+    round(res_white$h2_latent, 4)
+  ),
+  h2_observed = c(
+    round(res_gold$h2_obs, 4),
+    round(res_silver$h2_obs, 4),
+    round(res_cream$h2_obs, 4),
+    round(res_champagne$h2_obs, 4),
+    round(res_white$h2_obs, 4)
+  )
+)
+
+print(heritabilities)
+
+```
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(ggplot2)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class from prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+# Create binary indicators for each colour class
+donor_dat <- donor_dat %>% mutate(
+  is_gold = ifelse(Colour_Class == "Gold", 1, 0),
+  is_silver = ifelse(Colour_Class == "Silver", 1, 0),
+  is_cream = ifelse(Colour_Class == "Cream", 1, 0),
+  is_champagne = ifelse(Colour_Class == "Champagne", 1, 0),
+  is_white = ifelse(Colour_Class == "White", 1, 0)
+)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Helper function to fit model and extract h2 and BLUPs
+fit_model <- function(data, response, fixed_effects) {
+  data <- data %>% filter(complete.cases(select(., all_of(c(response, fixed_effects, "offspring_id_donor")))))
+  mod <- asreml(
+    fixed = as.formula(paste(response, "~", paste(fixed_effects, collapse = "+"))),
+    random = ~ vm(offspring_id_donor, ainv),
+    residual = ~ idv(units),
+    family = asr_binomial(link = "logit"),
+    data = data
+  )
+  mod <- update(mod)
+  vc <- summary(mod)$varcomp
+  Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+  Ve <- 1
+  h2_latent <- Va / (Va + Ve)
+  p <- mean(data[[response]], na.rm = TRUE)
+  z <- qnorm(p)
+  phi_z <- dnorm(z)
+  h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+  blup <- as.data.frame(summary(mod, coef = TRUE)$coef.random)
+  blup$logit <- blup$solution
+  blup$prob <- exp(blup$logit) / (1 + exp(blup$logit))
+  blup$donor <- sub(".*offspring_id_donor, ainv\\)_", "", rownames(blup))
+  list(h2_latent = h2_latent, h2_obs = h2_obs, blup = blup, varcomp = vc)
+}
+
+# Fit models
+res_gold <- fit_model(donor_dat, "is_gold", c("Pearl_Harvest_Data_DVH_mm", "Pearl_Harvest_Data_APW_mm", "Pearl_Harvest_Data_Shell_Weight_g"))
+res_silver <- fit_model(donor_dat, "is_silver", c("First_Op_Data_Nuclei_Size_mm", "First_Op_Data_Saibo_Area"))
+res_cream <- fit_model(donor_dat, "is_cream", c("First_Op_Data_DVH_mm", "First_Op_Data_Nuclei_Size_mm"))
+res_champagne <- fit_model(donor_dat, "is_champagne", c("Pearl_Harvest_Data_Days_of_Pearl_Culture"))
+res_white <- fit_model(donor_dat, "is_white", c("Pearl_Harvest_Data_DVH_mm", "First_Op_Data_Saibo_Area", "Pearl_Harvest_Data_Shell_Weight_g"))
+
+# Combine BLUPs for plotting
+combine_blup <- function(res, colour) {
+  df <- res$blup
+  df$colour <- colour
+  df
+}
+
+blup_all <- bind_rows(
+  combine_blup(res_gold, "Gold"),
+  combine_blup(res_silver, "Silver"),
+  combine_blup(res_cream, "Cream"),
+  combine_blup(res_champagne, "Champagne"),
+  combine_blup(res_white, "White")
+)
+
+# Get top and bottom 10 by BLUP within each colour
+top_bottom_blups <- blup_all %>%
+  group_by(colour) %>%
+  slice_max(order_by = solution, n = 10, with_ties = FALSE) %>%
+  bind_rows(
+    blup_all %>%
+      group_by(colour) %>%
+      slice_min(order_by = solution, n = 10, with_ties = FALSE)
+  ) %>%
+  ungroup()
+
+# Plot
+library(ggplot2)
+ggplot(top_bottom_blups, aes(x = reorder(donor, solution), y = solution, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~colour, scales = "free") +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 Donor Oysters by Genetic Merit (BLUP)",
+       x = "Donor ID", y = "BLUP (logit scale)")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(ggplot2)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$First_Op_Data_Saibo_Area <- as.factor(donor_dat$First_Op_Data_Saibo_Area)
+
+# Create Colour Class from prediction
+donor_dat$Colour_Class <- cut(
+  donor_dat$pred,
+  breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+  labels = c("White", "Silver", "Cream", "Champagne", "Gold"),
+  right = TRUE
+)
+
+# Create binary indicators for each colour class
+donor_dat <- donor_dat %>% mutate(
+  is_gold = ifelse(Colour_Class == "Gold", 1, 0),
+  is_silver = ifelse(Colour_Class == "Silver", 1, 0),
+  is_cream = ifelse(Colour_Class == "Cream", 1, 0),
+  is_champagne = ifelse(Colour_Class == "Champagne", 1, 0),
+  is_white = ifelse(Colour_Class == "White", 1, 0)
+)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Helper function to fit model and extract h2 and BLUPs
+fit_model <- function(data, response, fixed_effects) {
+  data <- data %>% filter(complete.cases(select(., all_of(c(response, fixed_effects, "offspring_id_donor")))))
+  mod <- asreml(
+    fixed = as.formula(paste(response, "~", paste(fixed_effects, collapse = "+"))),
+    random = ~ vm(offspring_id_donor, ainv),
+    residual = ~ idv(units),
+    family = asr_binomial(link = "logit"),
+    data = data
+  )
+  mod <- update(mod)
+  vc <- summary(mod)$varcomp
+  Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+  Ve <- 1
+  h2_latent <- Va / (Va + Ve)
+  p <- mean(data[[response]], na.rm = TRUE)
+  z <- qnorm(p)
+  phi_z <- dnorm(z)
+  h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+  blup <- as.data.frame(summary(mod, coef = TRUE)$coef.random)
+  blup$logit <- blup$solution
+  blup$prob <- exp(blup$logit) / (1 + exp(blup$logit))
+  blup$donor <- sub(".*offspring_id_donor, ainv\\)_", "", rownames(blup))
+  blup$donor <- gsub("^.*\\)_(.*)$", "\\1", rownames(blup))
+  list(h2_latent = h2_latent, h2_obs = h2_obs, blup = blup, varcomp = vc)
+}
+
+# Fit models
+res_gold <- fit_model(donor_dat, "is_gold", c("Pearl_Harvest_Data_DVH_mm", "Pearl_Harvest_Data_APW_mm", "Pearl_Harvest_Data_Shell_Weight_g"))
+res_silver <- fit_model(donor_dat, "is_silver", c("First_Op_Data_Nuclei_Size_mm", "First_Op_Data_Saibo_Area"))
+res_cream <- fit_model(donor_dat, "is_cream", c("First_Op_Data_DVH_mm", "First_Op_Data_Nuclei_Size_mm"))
+res_champagne <- fit_model(donor_dat, "is_champagne", c("Pearl_Harvest_Data_Days_of_Pearl_Culture"))
+res_white <- fit_model(donor_dat, "is_white", c("Pearl_Harvest_Data_DVH_mm", "First_Op_Data_Saibo_Area", "Pearl_Harvest_Data_Shell_Weight_g"))
+
+# Combine BLUPs for plotting
+combine_blup <- function(res, colour) {
+  df <- res$blup
+  df$colour <- colour
+  df
+}
+
+blup_all <- bind_rows(
+  combine_blup(res_gold, "Gold"),
+  combine_blup(res_silver, "Silver"),
+  combine_blup(res_cream, "Cream"),
+  combine_blup(res_champagne, "Champagne"),
+  combine_blup(res_white, "White")
+)
+
+# Get top and bottom 10 by BLUP within each colour
+top_bottom_blups <- blup_all %>%
+  group_by(colour) %>%
+  slice_max(order_by = solution, n = 10, with_ties = FALSE) %>%
+  bind_rows(
+    blup_all %>%
+      group_by(colour) %>%
+      slice_min(order_by = solution, n = 10, with_ties = FALSE)
+  ) %>%
+  ungroup()
+
+# Plot
+ggplot(top_bottom_blups, aes(x = reorder(donor, solution), y = solution, fill = colour)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~colour, scales = "free") +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 Donor Oysters by Genetic Merit (BLUP)",
+       x = "Donor ID", y = "BLUP (logit scale)")
+
+```
+
+## redo gold only
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(ggplot2)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modeling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components
+vc_gold <- summary(mod_gold)$varcomp
+Va_gold <- vc_gold["vm(offspring_id_donor, ainv)", "component"]
+Ve_gold <- vc_gold["units!R", "component"]
+h2_gold <- Va_gold / (Va_gold + Ve_gold)
+
+# Output heritability estimate
+cat("Gold heritability (Gaussian model):", round(h2_gold, 4), "\n")
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_(.*)$", "\\1", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# Plot top and bottom 10 donors by EBV
+top_bottom_blups <- blup_gold %>%
+  arrange(desc(EBV)) %>%
+  slice_head(n = 10) %>%
+  bind_rows(
+    blup_gold %>% arrange(EBV) %>% slice_head(n = 10)
+  )
+
+# Plot
+ggplot(top_bottom_blups, aes(x = reorder(donor, EBV), y = EBV)) +
+  geom_col(fill = "gold") +
+  coord_flip() +
+  labs(title = "Top and Bottom 10 Donors by Genetic Merit (Gold Proportion)",
+       x = "Donor ID", y = "BLUP (EBV for Gold)")
+
+```
+
+
+
+
+
+```{r}
+
+#VPREDICT ERROR Error in crossprod(X, ai) : "crossprod" is not a BUILTIN function
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modeling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components using vpredict
+vp <- vpredict(mod_gold, h2_latent ~ V1 / (V1 + V2))
+h2_latent <- vp["h2_latent", "Estimate"]
+
+# Estimate observed-scale heritability using linear trait approximation
+pred_mean <- mean(donor_dat_clean$pred, na.rm = TRUE)
+pred_var <- var(donor_dat_clean$pred, na.rm = TRUE)
+va <- summary(mod_gold)$varcomp["vm(offspring_id_donor, ainv)", "component"]
+h2_observed <- va / pred_var
+
+# Output heritability estimates
+cat("Gold heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("Gold heritability (observed scale):", round(h2_observed, 4), "\n")
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_(.*)$", "\\1", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+```
+
+
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modeling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components manually
+vc <- summary(mod_gold)$varcomp
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Heritability (latent scale)
+h2_latent <- Va / (Va + Ve)
+
+# Heritability (observed scale)
+pred_var <- var(donor_dat_clean$pred, na.rm = TRUE)
+h2_observed <- Va / pred_var
+
+# Output heritability estimates
+cat("Gold heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("Gold heritability (observed scale):", round(h2_observed, 4), "\n")
+
+# Gold heritability (latent scale): 0.0217 
+# Gold heritability (observed scale): 0.638
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+
+
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+```
+
+
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- read_csv("donorquant.csv") %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modeling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components manually
+vc <- summary(mod_gold)$varcomp
+print(vc)  # Print all variance components
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Heritability (latent scale)
+h2_latent <- Va / (Va + Ve)
+
+# Heritability (observed scale)
+pred_var <- var(donor_dat_clean$pred, na.rm = TRUE)
+h2_observed <- Va / pred_var
+
+# Output heritability estimates
+cat("Gold heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("Gold heritability (observed scale):", round(h2_observed, 4), "\n")
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+```
+
+
+
