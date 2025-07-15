@@ -1,0 +1,163 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-07-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r}
+library(readr)
+library(dplyr)
+
+# Load CSV
+pedigree_host <- read_csv("pedigree_host.csv")
+
+# Create family number column safely
+pedigree_host <- pedigree_host %>%
+  mutate(
+    family_key = paste(sire_host, dam_host, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# View the updated dataframe
+View(pedigree_host)
+
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Create a frequency table of family_number
+family_dist <- pedigree_host %>%
+  count(family_number)
+
+# Plot distribution
+ggplot(family_dist, aes(x = factor(family_number), y = n)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Distribution of Individuals per Family",
+    x = "Family Number",
+    y = "Count of Individuals"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+```{r}
+ggplot(family_dist, aes(x = factor(family_number), y = n)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Distribution of Individuals per Family",
+    x = "Family Number",
+    y = "Count of Individuals"
+  ) +
+  theme_minimal(base_size = 12) +
+  scale_x_discrete(breaks = function(x) x[seq(1, length(x), by = 5)]) +  # Show every 5th label
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+```{r}
+# Find the family with the most offspring
+top_family <- family_dist %>% filter(n == max(n)) %>% pull(family_number)
+
+ggplot(family_dist, aes(x = reorder(factor(family_number), -n), y = n, fill = family_number == top_family)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("grey70", "tomato"), guide = FALSE) +
+  labs(
+    title = "Host Family Size Distribution (Top Family Highlighted)",
+    x = "Family Number",
+    y = "Number of Offspring"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+```{r}
+top_n <- 10
+top_families <- family_dist %>%
+  arrange(desc(n)) %>%
+  slice_head(n = top_n)
+
+ggplot(top_families, aes(x = reorder(factor(family_number), n), y = n)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = paste("Top", top_n, "Families by Offspring Count"),
+    x = "Family Number",
+    y = "Number of Offspring"
+  ) +
+  theme_minimal(base_size = 12)
+
+```
+
+
+## DONOR
+
+
+
+
+```{r}
+library(readr)
+library(dplyr)
+
+# Load the data
+pedigree_donor <- read_csv("pedigree_donor.csv")
+
+# Create a unique family key and assign a numeric family number
+pedigree_donor <- pedigree_donor %>%
+  mutate(
+    family_key = paste(sire_donor, dam_donor, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# View result
+View(pedigree_donor)
+
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Count how many times each family_number appears (offspring per family)
+family_dist <- pedigree_donor %>%
+  count(family_number)
+
+# Plot
+ggplot(family_dist, aes(x = reorder(factor(family_number), -n), y = n)) +
+  geom_col(fill = "skyblue") +
+  labs(
+    title = "Number of Offspring per Donor Family",
+    x = "Family Number",
+    y = "Offspring Count"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+```
+
+
+```{r}
+top10 <- family_dist %>% arrange(desc(n)) %>% slice_head(n = 10)
+ggplot(top10, aes(x = reorder(factor(family_number), n), y = n)) +
+  geom_col(fill = "tomato") +
+  coord_flip() +
+  labs(title = "Top 10 Donor Families by Offspring Count",
+       x = "Family Number", y = "Offspring Count") +
+  theme_minimal()
+
+```
+
