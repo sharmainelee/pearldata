@@ -383,119 +383,9 @@ head(BLUP)
 #Scaling does not affect BLUPs or heritability structure
 #Random effects and ainv matrix are independent of the scale of the fixed effects.
 #So your heritability estimates and BLUPs remain interpretable — you just get a more numerically stable model.
+# I noticed when I do the fixed effects separately in the model the BLUP works, the First_Op_Data_Nuclei_Size_mm values are way smaller and have decimal pointsthan the First_Op_Data_DVH_mm
+# also the First_Op_Data_DVH_mm has some outliers 160, 90 but the average is around 100-150, even when i removed the BLUP is still very high, i tried quantile too but it doesn't work, thus scale is best
 
-# Load required libraries
-library(readr)
-library(asreml)
-library(nadiv)
-library(dplyr)
-
-# 1. Load data
-host_dat <- read_csv("host_id.csv")
-
-# 2. Create binary colour traits
-host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
-host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
-host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
-host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
-host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
-
-# 3. Format pedigree columns as factors
-host_dat$host_id <- as.factor(host_dat$host_id)
-host_dat$Dam     <- as.factor(host_dat$Dam)
-host_dat$Sire    <- as.factor(host_dat$Sire)
-
-# 4. Ensure numeric
-host_dat$First_Op_Data_DVH_mm         <- as.numeric(host_dat$First_Op_Data_DVH_mm)
-host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
-
-# 5. Remove rows with missing data and check pedigree completeness
-host_dat_clean <- host_dat %>%
-  filter(
-    !is.na(Cream),
-    !is.na(First_Op_Data_DVH_mm),
-    !is.na(First_Op_Data_Nuclei_Size_mm),
-    !is.na(host_id),
-    !is.na(Sire),
-    !is.na(Dam)
-  )
-
-# 6. Check if there’s variation in the trait
-if (length(unique(host_dat_clean$Cream)) < 2) {
-  stop("No variation in Cream trait — all values are 0 or 1.")
-}
-
-# 7. Create pedigree and inverse relationship matrix
-pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
-colnames(pedind) <- c("ID", "SIRE", "DAM")
-pedind <- data.frame(lapply(pedind, as.factor))
-ainv <- ainverse(pedind)
-
-
-
-# Scale predictors
-host_dat_clean <- host_dat_clean %>%
-  mutate(
-    DVH_scaled = scale(First_Op_Data_DVH_mm),
-    Nuclei_scaled = scale(First_Op_Data_Nuclei_Size_mm)
-  )
-
-# Fit simplified, scaled model
-mod.ind <- asreml(
-  fixed = Cream ~ DVH_scaled + Nuclei_scaled,
-  random = ~ vm(host_id, ainv),
-  residual = ~ idv(units),
-  data = host_dat_clean,
-  family = asr_binomial(link = "logit")
-)
-
-
-# 8. Update and extract variance components
-mod.ind <- update.asreml(mod.ind)
-summary(mod.ind)$varcomp
-
-# 8. Update model (again) to ensure convergence
-mod.ind <- update.asreml(mod.ind)
-
-# 9. Extract variance components manually
-vc <- summary(mod.ind)$varcomp
-print(vc)
-
-# 9. Extract variance components
-vc <- summary(mod.ind)$varcomp
-Va <- vc["vm(host_id, ainv)", "component"]
-Ve <- 1  # For logistic model
-
-# 10. Latent-scale heritability
-h2_latent <- Va / (Va + Ve)
-
-# 11. Prevalence and check for valid z-score
-p <- mean(host_dat_clean$Cream, na.rm = TRUE)
-
-if (p <= 0 | p >= 1) {
-  warning("Trait prevalence is 0 or 1 — cannot compute observed-scale heritability.")
-  h2_obs <- NA
-} else {
-  z <- qnorm(p)
-  phi_z <- dnorm(z)
-  h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
-}
-
-# 12. Report
-cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
-cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
-
-# 13. Extract BLUPs
-BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
-BLUP$host_id <- rownames(BLUP)
-BLUP$prob_cream <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
-
-head(BLUP)
-
-```
-
-
-```{r}
 # Load required libraries
 library(readr)
 library(asreml)
@@ -565,35 +455,42 @@ mod.ind <- update.asreml(mod.ind)
 vc <- summary(mod.ind)$varcomp
 print(vc)
 
-# --- Heritability Calculations ---
-Va     <- vc["vm(host_id, ainv)", "component"]
-SE_Va  <- vc["vm(host_id, ainv)", "std.error"]
-Ve     <- 1
 
-# Latent scale
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
 h2_latent     <- Va / (Va + Ve)
-dVa           <- Ve / (Va + Ve)^2
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
 SE_h2_latent  <- SE_Va * dVa
 
 cat("Heritability (latent scale):       ", h2_latent, "\n")
 cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
 
-# Observed scale
-p      <- mean(host_dat_clean$Cream, na.rm = TRUE)
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Cream, na.rm = TRUE)  # Trait prevalence
 z      <- qnorm(p)
 phi_z  <- dnorm(z)
 
-h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
-SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
 
 cat("Heritability (observed scale):     ", h2_obs, "\n")
 cat("Standard Error (observed scale):   ", SE_obs, "\n")
 
 # --- Summary table of heritability and standard errors ---
 herit_summary <- data.frame(
-  Scale        = c("Latent", "Observed"),
+  Scale = c("Latent", "Observed"),
   Heritability = c(h2_latent, h2_obs),
-  Std_Error    = c(SE_h2_latent, SE_obs)
+  Std_Error = c(SE_h2_latent, SE_obs)
 )
 
 print(herit_summary)
@@ -604,8 +501,6 @@ BLUP$host_id <- rownames(BLUP)
 head(BLUP)
 
 ```
-
-
 
 
 # HOST cHAMPAGNE
@@ -633,7 +528,6 @@ host_dat$Dam     <- as.factor(host_dat$Dam)
 host_dat$Sire    <- as.factor(host_dat$Sire)
 host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture    <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
 
-# 4. Ensure shell metrics are numeric
 
 
 
@@ -676,40 +570,52 @@ print(vc)
 
 # calculate heritability on the observed scale from your animal model for a binary trait. This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
 
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
 
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
 
-# 1. Extract variance components
-vc <- summary(mod.ind)$varcomp
-Va <- vc["vm(host_id, ainv)", "component"]
-Ve <- 1  # residual variance for logistic model
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
 
-# 2. Latent-scale heritability
-h2_latent <- Va / (Va + Ve)
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
 
-# 3. Calculate prevalence of trait 
-p <- mean(host_dat_clean$Champ, na.rm = TRUE)  # Proportion of "1"s
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
 
-# 4. Find threshold z and normal density at z
-z <- qnorm(p)
-phi_z <- dnorm(z)
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Champ, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
 
-# 5. Observed-scale heritability
-h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
 
-# 6. Print results
-cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
-cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
 
-## Heritability (latent scale):  
-## Heritability (observed scale):
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
 
 # 11. Extract BLUPs
 BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
 head(BLUP)
 
-BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+#BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
 
-BLUP$prob_champ
+#BLUP$prob_champ
 
 ```
 
@@ -717,12 +623,12 @@ BLUP$prob_champ
 
 ## DONOR
 
+#DONOR GOLD
 
-
-
-# DONOR GOLD
 
 ```{r}
+# DONOR GOLD
+
 # Load required libraries
 library(readr)
 library(asreml)
@@ -770,9 +676,7 @@ pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
 # 6. Generate the inverse relationship matrix (A-inverse)
 ainv <- ainverse(pedind)
 
-
-
-# 8. Fit the animal model
+# 7. Fit the animal model
 mod.ind <- asreml(
   fixed = Gold ~ 1,
   random = ~ vm(donor_id, ainv),
@@ -780,10 +684,6 @@ mod.ind <- asreml(
   data = donor_dat_clean,
   family = asr_binomial(link = "logit")
 )
-
-
-
-
 
 # 8. Update and extract variance components
 mod.ind <- update.asreml(mod.ind)
@@ -796,22 +696,40 @@ mod.ind <- update.asreml(mod.ind)
 vc <- summary(mod.ind)$varcomp
 print(vc)
 
-
-
 # 10. Calculate heritability (latent scale)
-Va <- vc["vm(donor_id, ainv)", "component"]
-Ve <- 1  # Residual variance for logistic models
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
 h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
 
 # 11. Convert to observed scale using trait prevalence
 p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
 z <- qnorm(p)
 phi_z <- dnorm(z)
-h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
 
-# 12. Print heritability estimates
-cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
-cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
 
 # 13. Extract BLUPs (genetic merit)
 BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
@@ -829,10 +747,11 @@ head(BLUP)
 ```
 
 
-
 # DONOR SILVER 
 
 ```{r}
+# DONOR SILVER
+
 # Load required libraries
 library(readr)
 library(asreml)
@@ -881,7 +800,7 @@ pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
 # 6. Generate the inverse relationship matrix (A-inverse)
 ainv <- ainverse(pedind)
 
-# 7. Ensure fixed effect is factor
+# 7. Ensure fixed effect is a factor
 donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(
   donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round
 )
@@ -889,13 +808,11 @@ donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(
 # 8. Fit the animal model
 mod.ind <- asreml(
   fixed = Silver ~ Matched_Donor_Data_Nacre_lip_colour_Round,
-  random = ~ vm(donor_id, ainv),          # Genetic effect
-  residual = ~ idv(units),                # Independent residuals
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
   data = donor_dat_clean,
-  family = asr_binomial(link = "logit")   # Binary trait model
+  family = asr_binomial(link = "logit")
 )
-
-
 
 # 8. Update and extract variance components
 mod.ind <- update.asreml(mod.ind)
@@ -909,36 +826,42 @@ vc <- summary(mod.ind)$varcomp
 print(vc)
 
 # 10. Calculate heritability (latent scale)
-Va <- vc["vm(donor_id, ainv)", "component"]
-Ve <- 1  # Residual variance for logistic models
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
 h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
 
 # 11. Convert to observed scale using trait prevalence
 p <- mean(donor_dat_clean$Silver, na.rm = TRUE)
 z <- qnorm(p)
 phi_z <- dnorm(z)
+
 h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
 
-# 12. Print heritability estimates
-cat("Heritability (latent scale):  ", round(h2_latent, 4), "\n")
-cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
 
-#Heritability (latent scale):   0.2254 
-#Heritability (observed scale): 0.0583 
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
 
-# 13. Extract BLUPs (genetic merit)
-#BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
-#BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
-#head(BLUP)
+print(herit_summary)
 
-# Extract actual donor IDs (with prefix formatting if applied)
-actual_ids <- unique(donor_dat_clean$donor_id)
-
-# Extract donor_id from rownames
+# 13. Extract BLUPs
 BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
 BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
-
-# Filter only donor IDs used in model
+actual_ids <- unique(donor_dat_clean$donor_id)
 BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
 
 # Optional: calculate probabilities
@@ -947,8 +870,6 @@ BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
 head(BLUP)
 
 ```
-
-
 
 
 
