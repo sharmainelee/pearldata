@@ -9,7 +9,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## TRADITIONAL HERITABILITY ESTIMATES AND BLUP (EBV)
-#HOST GOLD 
+
+#HOST GOLD
 
 ```{r}
 
@@ -129,10 +130,6 @@ head(BLUP)
 
 ```
 
-
-
-
-
 # HOST SILVER
 
 ```{r}
@@ -250,8 +247,6 @@ head(BLUP)
 #BLUP$prob_silver
 
 ```
-
-
 
 # HOST WHITE
 
@@ -373,10 +368,7 @@ head(BLUP)
 
 ```
 
-
-
-
-# HOST CREAM 
+# HOST CREAM
 
 ```{r}
 
@@ -502,7 +494,6 @@ head(BLUP)
 
 ```
 
-
 # HOST cHAMPAGNE
 
 ```{r}
@@ -619,12 +610,9 @@ head(BLUP)
 
 ```
 
-
-
 ## DONOR
 
 #DONOR GOLD
-
 
 ```{r}
 # DONOR GOLD
@@ -747,8 +735,7 @@ head(BLUP)
 
 ```
 
-
-# DONOR SILVER 
+# DONOR SILVER
 
 ```{r}
 # DONOR SILVER
@@ -872,9 +859,6 @@ head(BLUP)
 
 ```
 
-
-
-
 # DONOR WHITE
 
 ```{r}
@@ -995,8 +979,6 @@ BLUP$prob_white <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
 head(BLUP)
 
 ```
-
-
 
 # DONOR CREAM
 
@@ -1120,8 +1102,6 @@ head(BLUP)
 
 ```
 
-
-
 # DONOR CHAMPAGNE
 
 ```{r}
@@ -1244,13 +1224,9 @@ head(BLUP)
 
 ```
 
-
-
-
 ## QUANTITATIVE HERITABILITY ESTIMATE AND BLUP (EBV)
 
-
-# HOST QUANTITATIVE 
+# HOST QUANTITATIVE
 
 ```{r}
 # Load required libraries
@@ -1315,7 +1291,6 @@ blup_host$EBV <- blup_host$solution
 head(blup_host[order(-blup_host$EBV), ], 10)
 
 ```
-
 
 ```{r}
 # HOST QUANTITATIVE HERITABILITY + SE
@@ -1394,17 +1369,7 @@ print(herit_table)
 
 ```
 
-
-
-
-
-
-
-
 # DONOR QUANTITATIVE issue
-
-
-
 
 ```{r}
 
@@ -1495,11 +1460,7 @@ head(blup_gold[order(-blup_gold$EBV), ], 10)
 
 ```
 
-
-
-
-# DONOR QUANTITATIVE 
-
+# DONOR QUANTITATIVE
 
 ```{r}
 #WORKS
@@ -1557,7 +1518,8 @@ head(blup_gold[order(-blup_gold$EBV), ], 10)
 
 ```
 
-# DONOR QUANTITATIVE 
+# DONOR QUANTITATIVE
+
 ```{r}
 #works
 # Input variance components and their SEs
@@ -1586,10 +1548,6 @@ cat("Standard error of h2:            ", round(SE_h2, 4), "\n")
 cat("Z-ratio:                         ", round(z_ratio, 2), "\n")
 
 ```
-
-
-
-
 
 #host
 
@@ -1669,8 +1627,6 @@ head(blup_host[order(-blup_host$EBV), ], 10)
 
 ```
 
-
-
 ```{r}
 # HOST QUANTITATIVE — CLEAN VERSION (NO DISTINCT, CONVERGED TWICE, NO HERITABILITY SECTION)
 
@@ -1726,8 +1682,6 @@ blup_host <- blup_host %>%
 head(blup_host[order(-blup_host$EBV), ], 10)
 
 ```
-
-
 
 ```{r}
 
@@ -1787,7 +1741,6 @@ head(blup_host[order(-blup_host$EBV), ], 10)
 
 ```
 
-
 ```{r}
 # From your model output:
 Va <- 7.674054e-08   # Genetic variance component (very small)
@@ -1809,12 +1762,7 @@ cat("Heritability estimate (h2):", h2, "\n")
 
 ```
 
-
-
-#Use a conservative assumed coefficient of variation (CV)
-#Assume a CV of 50%, i.e., standard error is 50% of the estimate.
-
-
+#Use a conservative assumed coefficient of variation (CV) #Assume a CV of 50%, i.e., standard error is 50% of the estimate.
 
 ```{r}
 Va <- 7.674054e-08
@@ -1841,4 +1789,64 @@ cat("Z-ratio:          ", z_ratio, "\n")
 
 ```
 
+# graph
 
+```{r}
+
+# Load required libraries
+library(ggplot2)
+library(readr)
+
+# Load the dataset
+host_dat <- read_csv("hostquant.csv")
+
+# Plot the distribution of 'pred'
+ggplot(host_dat, aes(x = pred)) +
+  geom_histogram(binwidth = 0.05, color = "black", fill = "steelblue", boundary = 0) +
+  labs(
+    title = "Distribution of Pearl Colour (pred values)",
+    x = "Predicted Colour Score (pred)",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+```
+
+Assumption: Gold = pred \>= 0.8
+
+Non-Gold = pred \< 0.8
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(readr)
+library(dplyr)
+
+# Load the dataset
+host_dat <- read_csv("hostquant.csv")
+
+# Define colour class
+host_dat <- host_dat %>%
+  mutate(colour_class = ifelse(pred >= 0.8, "Gold", "Non-Gold"))
+
+# Plot overlaid histograms
+ggplot(host_dat, aes(x = pred, fill = colour_class)) +
+  geom_histogram(data = subset(host_dat, colour_class == "Non-Gold"),
+                 binwidth = 0.05, alpha = 0.6, color = "black") +
+  geom_histogram(data = subset(host_dat, colour_class == "Gold"),
+                 binwidth = 0.05, alpha = 0.8, color = "black") +
+  scale_fill_manual(values = c("Gold" = "goldenrod", "Non-Gold" = "grey60")) +
+  labs(
+    title = "Overlay of Gold vs Non-Gold Pearl Colour Scores",
+    x = "Predicted Colour Score (pred)",
+    y = "Count",
+    fill = "Colour Class"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+
+```
