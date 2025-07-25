@@ -1959,7 +1959,7 @@ blup_gold$EBV <- blup_gold$solution
 # View top BLUPs
 head(blup_gold[order(-blup_gold$EBV), ], 10)
 
-
+vpredict(mod_gold,h2~V1/(V1+V2))
 
 ```
 
@@ -2033,4 +2033,71 @@ ggplot(host_dat, aes(x = pred)) +
 
 ```
 
+
+
+
+
+
+## test fixed effects on quantitative heritability 
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load and clean host data
+host_dat <- hostquant %>%
+  filter(!is.na(offspring_id_host), !is.na(dam_host), !is.na(sire_host), !is.na(pred),
+         !is.na(Pearl_Harvest_Data_DVH_mm), !is.na(Pearl_Harvest_Data_APW_mm), !is.na(Pearl_Harvest_Data_Shell_Weight_g))
+
+# 2. Convert columns to appropriate types
+host_dat <- host_dat %>%
+  mutate(
+    offspring_id_host = as.factor(offspring_id_host),
+    dam_host          = as.factor(dam_host),
+    sire_host         = as.factor(sire_host)
+  )
+
+# 3. Prepare pedigree
+ped <- host_dat %>%
+  select(ID = offspring_id_host, SIRE = sire_host, DAM = dam_host) %>%
+  mutate(across(everything(), as.factor))
+
+# Ensure pedigree is topologically sorted
+ped_sorted <- prepPed(ped)
+ainv <- ainverse(ped_sorted)
+
+# 4. Fit ASReml Gaussian animal model with fixed effects
+mod_host <- asreml(
+  fixed    = pred ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random   = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  data     = host_dat
+)
+
+# 5. Ensure convergence (repeat update)
+for (i in 1:5) {
+  mod_host <- update(mod_host)
+}
+
+# 6. Extract and print variance components
+vc <- summary(mod_host)$varcomp
+print(vc)
+
+# 7. Estimate heritability (observed scale)
+vpredict(mod_host, h2 ~ V1 / (V1 + V2))
+
+# 8. Extract BLUPs (EBVs)
+blup_host <- as.data.frame(summary(mod_host, coef = TRUE)$coef.random)
+blup_host$host <- gsub("^.*\\)_", "", rownames(blup_host))
+blup_host <- blup_host %>%
+  filter(host %in% unique(host_dat$offspring_id_host)) %>%
+  mutate(EBV = solution)
+
+# 9. View top 10 EBVs
+head(blup_host[order(-blup_host$EBV), ], 10)
+
+```
 
