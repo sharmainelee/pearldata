@@ -1,0 +1,2036 @@
+---
+title: "se3"
+output: html_document
+date: "2025-07-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## TRADITIONAL HERITABILITY ESTIMATES AND ESTIMATED BREEDING VALUES
+
+#HOST GOLD
+
+```{r}
+
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+
+#host_dat <- read_csv("host_id.csv")
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+# 4. Ensure shell metrics are numeric
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for Gold (binary trait)
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+```
+
+```{r}
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Gold, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+#BLUP$prob_gold
+
+
+```
+
+
+
+# HOST SILVER
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+host_dat$First_Op_Data_Saibo_Area    <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+
+# 4. Ensure shell metrics are numeric
+host_dat$First_Op_Data_Nuclei_Size_mm         <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for Silver (binary trait)
+mod.ind <- asreml(
+  fixed = Silver ~ First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+
+```
+
+
+```{r}
+# calculate heritability on the observed scale from your animal model for a binary trait. This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Silver, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+#BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+#BLUP$prob_silver
+
+```
+
+
+# HOST WHITE
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#host_dat <- read_csv("host_id.csv")
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+host_dat$First_Op_Data_Saibo_Area    <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+
+# 4. Ensure shell metrics are numeric
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g         <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for White (binary trait)
+mod.ind <- asreml(
+  fixed = White ~ Pearl_Harvest_Data_DVH_mm + First_Op_Data_Saibo_Area + Pearl_Harvest_Data_Shell_Weight_g,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+
+```
+
+
+```{r}
+
+# calculate heritability on the observed scale from your animal model for a binary trait. This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$White, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+#BLUP$prob_white <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+#BLUP$prob_white
+
+```
+
+
+
+# HOST CREAM
+
+```{r}
+
+#Scaling does not affect BLUPs or heritability structure
+#Random effects and ainv matrix are independent of the scale of the fixed effects.
+#So your heritability estimates and BLUPs remain interpretable — you just get a more numerically stable model.
+# I noticed when I do the fixed effects separately in the model the BLUP works, the First_Op_Data_Nuclei_Size_mm values are way smaller and have decimal pointsthan the First_Op_Data_DVH_mm
+# also the First_Op_Data_DVH_mm has some outliers 160, 90 but the average is around 100-150, even when i removed the BLUP is still very high, i tried quantile too but it doesn't work, thus scale is best
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#host_dat <- read_csv("host_id.csv")
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+# 4. Ensure predictors are numeric
+host_dat$First_Op_Data_DVH_mm         <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(host_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+ainv <- ainverse(pedind)
+
+# 7. Scale predictors
+host_dat_clean <- host_dat_clean %>%
+  mutate(
+    DVH_scaled     = scale(First_Op_Data_DVH_mm),
+    Nuclei_scaled  = scale(First_Op_Data_Nuclei_Size_mm)
+  )
+
+# 8. Fit animal model for Cream (binary trait)
+mod.ind <- asreml(
+  fixed    = Cream ~ DVH_scaled + Nuclei_scaled,
+  random   = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data     = host_dat_clean,
+  family   = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+```
+
+
+```{r}
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Cream, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$host_id <- rownames(BLUP)
+head(BLUP)
+
+```
+
+
+
+
+# HOST CREAM!!!!!!!!!!!!!  1 FIXED EFFECT this is for NUCLEI SIZE
+
+```{r}
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#host_dat <- read_csv("host_id.csv")
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+# 4. Ensure predictors are numeric
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(host_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+ainv <- ainverse(pedind)
+
+
+# 8. Fit animal model for Cream (binary trait)
+mod.ind <- asreml(
+  fixed = Cream ~ First_Op_Data_Nuclei_Size_mm,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+```
+
+```{r}
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Cream, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$host_id <- rownames(BLUP)
+head(BLUP)
+
+```
+
+
+
+
+# HOST CREAM test without scale WORKS YAY I CONVERGED 3X TO ENSURE %ch is 0 
+
+```{r}
+
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+# 4. Ensure predictors are numeric
+host_dat$First_Op_Data_DVH_mm         <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(host_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+ainv <- ainverse(pedind)
+
+
+# 8. Fit animal model for Cream (binary trait)
+mod.ind <- asreml(
+  fixed    = Cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm,
+  random   = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data     = host_dat_clean,
+  family   = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+mod.ind <- update.asreml(mod.ind)
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+```
+
+
+```{r}
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Cream, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$host_id <- rownames(BLUP)
+head(BLUP)
+
+```
+
+
+
+# CREAM WITHOUT FIXED EFFECTS 
+
+```{r}
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(host_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+ainv <- ainverse(pedind)
+
+
+# 8. Fit animal model for Cream (binary trait)
+mod.ind <- asreml(
+  fixed    = Cream ~ 1,
+  random   = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data     = host_dat_clean,
+  family   = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+```
+
+
+```{r}
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Cream, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$host_id <- rownames(BLUP)
+head(BLUP)
+
+```
+
+
+
+# HOST cHAMPAGNE
+
+```{r}
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+host_dat <- host_id
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+host_dat$Silver <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+host_dat$White  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+host_dat$Cream  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+host_dat$Champ  <- ifelse(startsWith(host_dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# 3. Format pedigree columns as factors
+host_dat$host_id <- as.factor(host_dat$host_id)
+host_dat$Dam     <- as.factor(host_dat$Dam)
+host_dat$Sire    <- as.factor(host_dat$Sire)
+host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture    <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+
+
+
+
+# 5. Remove rows with missing values in relevant columns
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree and inverse relationship matrix
+pedind <- host_dat_clean[, c("host_id", "Sire", "Dam")]
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit animal model for champ (binary trait)
+mod.ind <- asreml(
+  fixed = Champ ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+```
+
+
+```{r}
+
+# calculate heritability on the observed scale from your animal model for a binary trait. This gives a more interpretable estimate in terms of the actual 0/1 outcomes (i.e., real-world expression of color).
+
+# Latent scale tells you the heritability on a theoretical continuous trait that gives rise to the binary outcome.
+
+# Observed scale tells you how much of the 0/1 variation is due to genetics — and is usually much lower, especially when the trait is rare
+
+# --- Extract variance components ---
+vc     <- summary(mod.ind)$varcomp
+Va     <- vc["vm(host_id, ainv)", "component"]     # Additive genetic variance
+SE_Va  <- vc["vm(host_id, ainv)", "std.error"]     # Standard error of Va
+Ve     <- 1                                        # Residual variance for logistic models
+
+# --- Latent-scale heritability ---
+h2_latent     <- Va / (Va + Ve)
+dVa           <- Ve / (Va + Ve)^2                 # Derivative for delta method
+SE_h2_latent  <- SE_Va * dVa
+
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+
+# --- Observed-scale heritability ---
+p      <- mean(host_dat_clean$Champ, na.rm = TRUE)  # Trait prevalence
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs    <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_obs, "\n")
+
+# --- Summary table of heritability and standard errors ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+
+# 11. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+#BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+#BLUP$prob_champ
+
+```
+
+## DONOR
+
+#DONOR GOLD
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data
+
+
+# 2. Fix column names and convert to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+
+```
+
+
+```{r}
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+actual_ids <- unique(donor_dat_clean$donor_id)
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+# DONOR SILVER
+
+```{r}
+
+# DONOR SILVER
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- donor_data
+
+# 2. Fix column names and convert to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Ensure fixed effect is a factor
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(
+  donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round
+)
+
+# 8. Fit the animal model
+mod.ind <- asreml(
+  fixed = Silver ~ Matched_Donor_Data_Nacre_lip_colour_Round,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+```
+
+
+```{r}
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Silver, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+print(herit_summary)
+
+# 13. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+actual_ids <- unique(donor_dat_clean$donor_id)
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+# DONOR WHITE
+
+```{r}
+# DONOR WHITE
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- donor_data
+
+# 2. Convert relevant columns to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (starting string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create pedigree
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam) %>%
+  rename(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+# 6. Generate A-inverse matrix
+ainv <- ainverse(pedind)
+
+# 7. Ensure fixed effect is factor
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(
+  donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round
+)
+
+# 8. Fit animal model
+mod.ind <- asreml(
+  fixed = White ~ Matched_Donor_Data_Nacre_lip_colour_Round,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+```
+
+```{r}
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p      <- mean(donor_dat_clean$White, na.rm = TRUE)
+z      <- qnorm(p)
+phi_z  <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# --- Summary table ---
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+print(herit_summary)
+
+# 13. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+actual_ids <- as.character(unique(donor_dat_clean$donor_id))
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# 14. Calculate probabilities
+BLUP$prob_white <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+# DONOR CREAM
+
+```{r}
+
+# DONOR CREAM
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- donor_data
+
+# 2. Convert relevant columns to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Ensure shell metrics are numeric
+donor_dat$Matched_Donor_Data_DVH_mm <- as.numeric(donor_dat$Matched_Donor_Data_DVH_mm)
+donor_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(donor_dat$Matched_Donor_Data_Shell_Weight_g)
+
+# 4. Create binary traits from Pearl_Grading_Data_Colour
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 5. Filter for complete cases
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 6. Create pedigree
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam) %>%
+  rename(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+# 7. Generate A-inverse matrix
+ainv <- ainverse(pedind)
+
+# 8. Fit animal model
+mod.ind <- asreml(
+  fixed = Cream ~ Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+```
+
+
+```{r}
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# SE using delta method
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using Cream prevalence
+p <- mean(donor_dat_clean$Cream, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# 13. Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+print(herit_summary)
+
+# 14. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+actual_ids <- as.character(unique(donor_dat_clean$donor_id))
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# 15. Calculate predicted probabilities (optional)
+BLUP$prob_cream <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+# DONOR CHAMPAGNE
+
+```{r}
+
+# DONOR CHAMP
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+donor_dat <- donor_data
+
+# 2. Convert relevant columns to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam) %>%
+  rename(ID = donor_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+# 6. Generate inverse relationship matrix
+ainv <- ainverse(pedind)
+
+# 7. Ensure fixed effects are factors
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Flat  <- as.factor(donor_dat_clean$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+# 8. Fit the animal model
+mod.ind <- asreml(
+  fixed = Champ ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+```
+
+
+```{r}
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using Champ prevalence
+p <- mean(donor_dat_clean$Champ, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# 13. Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+print(herit_summary)
+
+# 14. Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+actual_ids <- as.character(unique(donor_dat_clean$donor_id))
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# 15. Calculate predicted probabilities (optional)
+BLUP$prob_champ <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+## QUANTITATIVE HERITABILITY ESTIMATE AND BLUP (EBV)
+
+# HOST QUANTITATIVE
+
+
+```{r}
+# HOST QUANTITATIVE HERITABILITY + SE
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load and clean host data
+host_dat <- hostquant %>%
+  filter(!is.na(offspring_id_host) & !is.na(dam_host) & !is.na(sire_host) & !is.na(pred))
+
+# 2. Convert ID columns to factors
+host_dat$offspring_id_host <- as.factor(host_dat$offspring_id_host)
+host_dat$dam_host <- as.factor(host_dat$dam_host)
+host_dat$sire_host <- as.factor(host_dat$sire_host)
+
+# 3. Prepare pedigree and inverse relationship matrix
+ped_host <- host_dat %>%
+  distinct(offspring_id_host, .keep_all = TRUE) %>%
+  select(ID = offspring_id_host, SIRE = sire_host, DAM = dam_host)
+ped_host <- data.frame(lapply(ped_host, as.factor))
+ainv_host <- ainverse(ped_host)
+
+# 4. Filter complete cases
+host_dat_clean <- host_dat %>%
+  filter(complete.cases(pred, offspring_id_host))
+
+# 5. Fit ASReml Gaussian animal model
+mod_host <- asreml(
+  fixed    = pred ~ 1,
+  random   = ~ vm(offspring_id_host, ainv_host),
+  residual = ~ idv(units),
+  data     = host_dat_clean
+)
+
+# 6. Ensure convergence
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+
+# 7. Extract variance components
+vc_host <- summary(mod_host)$varcomp
+print(vc_host)
+
+# Calculating heritability
+vpredict(mod_host,h2~V1/(V1+V2))
+```
+
+
+
+
+
+use this vpredict host
+
+```{r}
+
+# HOST QUANTITATIVE — CLEAN VERSION (NO DISTINCT, CONVERGED TWICE, NO HERITABILITY SECTION)
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+host_dat <- hostquant %>%
+  filter(!is.na(offspring_id_host) & !is.na(dam_host) & !is.na(sire_host) & !is.na(pred))
+
+# Convert columns to appropriate types
+host_dat$offspring_id_host <- as.factor(host_dat$offspring_id_host)
+host_dat$dam_host <- as.factor(host_dat$dam_host)
+host_dat$sire_host <- as.factor(host_dat$sire_host)
+
+# Prepare pedigree (no distinct used)
+ped <- host_dat %>%
+  select(ID = offspring_id_host, SIRE = sire_host, DAM = dam_host)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modeling
+host_dat_clean <- host_dat %>%
+  filter(complete.cases(pred, offspring_id_host))
+
+# Fit ASReml Gaussian animal model
+mod_host <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean
+)
+
+# Update twice to ensure convergence and standard errors
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+
+# Extract and print variance components
+vc <- summary(mod_host)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod_host,h2~V1/(V1+V2))
+
+
+
+# Extract BLUPs
+blup_host <- as.data.frame(summary(mod_host, coef = TRUE)$coef.random)
+blup_host$host <- gsub("^.*\\)_", "", rownames(blup_host))
+blup_host <- blup_host %>%
+  filter(host %in% unique(host_dat_clean$offspring_id_host)) %>%
+  mutate(EBV = solution)
+
+# View top 10 BLUPs
+head(blup_host[order(-blup_host$EBV), ], 10)
+
+```
+
+
+
+
+
+# DONOR QUANTITATIVE 
+
+```{r}
+
+# DONOR QUANTITATIVE (Gaussian model, no latent/observed scale conversion)
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree and inverse relationship matrix
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor) %>%
+  mutate(across(everything(), as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modeling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components
+vc <- summary(mod_gold)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod_gold,h2~V1/(V1+V2))
+
+
+```
+
+
+```{r}
+# Extract BLUPs
+blup_host <- as.data.frame(summary(mod_host, coef = TRUE)$coef.random)
+blup_host$host <- gsub("^.*\\)_", "", rownames(blup_host))
+blup_host <- blup_host %>%
+  filter(host %in% unique(host_dat_clean$offspring_id_host)) %>%
+  mutate(EBV = solution)
+
+# View top 10 BLUPs
+head(blup_host[order(-blup_host$EBV), ], 10)
+```
+
+
+
+```{r}
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+
+```
+
+
+
+
+# DONOR QUANTITATIVE GOOD
+
+```{r}
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components manually
+vc <- summary(mod_gold)$varcomp
+print(vc)  # Print all variance components
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+
+
+```
+
+
+
+
+
+# DONOR QUANTITATIVE
+
+```{r}
+#works
+# Input variance components and their SEs
+Va    <- 0.02216302      # Genetic variance
+Va_se <- 0.005141393     # SE of Va
+Ve    <- 0.01752539      # Residual variance
+Ve_se <- 0.001265809     # SE of Ve
+
+# 1. Heritability estimate
+h2 <- Va / (Va + Ve)
+
+# 2. Delta method for SE of h2
+denom <- (Va + Ve)^2
+
+SE_h2 <- sqrt(
+  (Ve / denom)^2 * Va_se^2 +
+  (Va / denom)^2 * Ve_se^2
+)
+
+# 3. Z-ratio
+z_ratio <- h2 / SE_h2
+
+# 4. Print results
+cat("Observed-scale heritability (h2):", round(h2, 4), "\n")
+cat("Standard error of h2:            ", round(SE_h2, 4), "\n")
+cat("Z-ratio:                         ", round(z_ratio, 2), "\n")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+# graph
+
+```{r}
+
+# Load required libraries
+library(ggplot2)
+library(readr)
+
+# Load the dataset
+host_dat <- hostquant
+
+# Plot the distribution of 'pred'
+ggplot(host_dat, aes(x = pred)) +
+  geom_histogram(binwidth = 0.05, color = "black", fill = "steelblue", boundary = 0) +
+  labs(
+    title = "Distribution of Pearl Colour (pred values)",
+    x = "Predicted Colour Score (pred)",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+```
+
+
