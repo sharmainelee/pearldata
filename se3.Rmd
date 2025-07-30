@@ -2035,6 +2035,260 @@ ggplot(host_dat, aes(x = pred)) +
 
 
 
+```{r}
+# Load required libraries
+library(ggplot2)
+library(readr)
+
+# Load the dataset
+host_dat2 <- host_id
+
+# Plot the distribution of pearl colour categories
+ggplot(host_dat2, aes(x = Pearl_Grading_Data_Colour)) +
+  geom_bar(color = "black", fill = "steelblue") +
+  labs(
+    title = "Distribution of Pearl Colour Categories",
+    x = "Pearl Grading Data Colour",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+```
+
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset
+host_dat2 <- host_id
+
+# 1. Remove NAs
+host_dat2 <- host_dat2 %>%
+  filter(!is.na(Pearl_Grading_Data_Colour))
+
+# 2. Reorder factor levels to put "Gold" group colours last
+gold_group <- c("Gold", "Gold Silver", "Gold White")
+other_levels <- setdiff(unique(host_dat2$Pearl_Grading_Data_Colour), gold_group)
+ordered_levels <- c(sort(other_levels), gold_group)
+
+host_dat2$Pearl_Grading_Data_Colour <- factor(host_dat2$Pearl_Grading_Data_Colour, levels = ordered_levels)
+
+# 3. Plot
+ggplot(host_dat2, aes(x = Pearl_Grading_Data_Colour)) +
+  geom_bar(color = "black", fill = "steelblue") +
+  labs(
+    title = "Distribution of Pearl Colour Categories",
+    x = "Pearl Grading Data Colour",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset
+host_dat2 <- host_id
+
+# 1. Remove rows with NA in colour column
+host_dat2 <- host_dat2 %>%
+  filter(!is.na(Pearl_Grading_Data_Colour))
+
+# 2. Define colour groups
+white_group <- c("White", "White Cream", "White Gold", "White Pink", "White Silver")
+gold_group  <- c("Gold", "Gold Silver", "Gold White")
+
+# 3. Get all other colours not in white or gold groups
+other_colours <- setdiff(unique(host_dat2$Pearl_Grading_Data_Colour), c(white_group, gold_group))
+
+# 4. Define final order: white group (left) + other colours (middle) + gold group (right)
+ordered_levels <- c(white_group, sort(other_colours), gold_group)
+
+# 5. Reorder factor levels
+host_dat2$Pearl_Grading_Data_Colour <- factor(host_dat2$Pearl_Grading_Data_Colour, levels = ordered_levels)
+
+# 6. Plot
+ggplot(host_dat2, aes(x = Pearl_Grading_Data_Colour)) +
+  geom_bar(color = "black", fill = "steelblue") +
+  labs(
+    title = "Distribution of Pearl Colour Categories",
+    x = "Pearl Grading Data Colour",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset
+host_dat2 <- host_id
+
+# 1. Remove NA and exclude "No Grade" and "Low Grade"
+host_dat2 <- host_dat2 %>%
+  filter(
+    !is.na(Pearl_Grading_Data_Colour),
+    !Pearl_Grading_Data_Colour %in% c("No Grade", "Low Grade")
+  )
+
+# 2. Define colour groups
+white_group <- c("White", "White Cream", "White Gold", "White Pink", "White Silver")
+gold_group  <- c("Gold", "Gold Silver", "Gold White")
+
+# 3. Identify all other colours
+other_colours <- setdiff(unique(host_dat2$Pearl_Grading_Data_Colour), c(white_group, gold_group))
+
+# 4. Set desired order: white group → other → gold group
+ordered_levels <- c(white_group, sort(other_colours), gold_group)
+
+# 5. Relevel the factor
+host_dat2$Pearl_Grading_Data_Colour <- factor(host_dat2$Pearl_Grading_Data_Colour, levels = ordered_levels)
+
+# 6. Plot
+ggplot(host_dat2, aes(x = Pearl_Grading_Data_Colour)) +
+  geom_bar(color = "black", fill = "steelblue") +
+  labs(
+    title = "Distribution of Pearl Colour Categories (Excluding No Grade / Low Grade)",
+    x = "Pearl Grading Data Colour",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+
+
+
+
+
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+
+# Define the correct colour order
+ordered_levels <- c(
+  "White", "White Silver", "White Cream", "White Gold", "White Pink",
+  "Cream", "Champagne",
+  "Silver", "Pink", "Cream Silver", "Champagne Silver",
+  "Gold White", "Gold Silver", "Gold"
+)
+
+# Clean and prepare the data
+host_dat2 <- host_id %>%
+  mutate(
+    Pearl_Grading_Data_Colour = trimws(Pearl_Grading_Data_Colour)  # remove leading/trailing spaces
+  ) %>%
+  filter(
+    !is.na(Pearl_Grading_Data_Colour),
+    !Pearl_Grading_Data_Colour %in% c("No Grade", "Low Grade"),
+    Pearl_Grading_Data_Colour %in% ordered_levels  # keep only known levels
+  ) %>%
+  mutate(
+    Pearl_Grading_Data_Colour = factor(Pearl_Grading_Data_Colour, levels = ordered_levels)
+  )
+
+# Plot the cleaned data
+ggplot(host_dat2, aes(x = Pearl_Grading_Data_Colour)) +
+  geom_bar(color = "black", fill = "steelblue") +
+  labs(
+    title = "Distribution of Pearl Colour Categories",
+    x = "Pearl Grading Data Colour",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+# Define the correct colour order
+ordered_levels <- c(
+  "White", "White Silver", "White Cream", "White Gold", "White Pink",
+  "Cream", "Champagne",
+  "Silver", "Pink", "Cream Silver", "Champagne Silver",
+  "Gold White", "Gold Silver", "Gold"
+)
+
+# Clean and prepare the categorical data
+host_dat2 <- host_id %>%
+  mutate(
+    Pearl_Grading_Data_Colour = trimws(Pearl_Grading_Data_Colour)
+  ) %>%
+  filter(
+    !is.na(Pearl_Grading_Data_Colour),
+    !Pearl_Grading_Data_Colour %in% c("No Grade", "Low Grade"),
+    Pearl_Grading_Data_Colour %in% ordered_levels
+  ) %>%
+  mutate(
+    Pearl_Grading_Data_Colour = factor(Pearl_Grading_Data_Colour, levels = ordered_levels)
+  )
+
+# Plot 1: Categorical bar plot
+plot1 <- ggplot(host_dat2, aes(x = Pearl_Grading_Data_Colour)) +
+  geom_bar(color = "black", fill = "steelblue") +
+  labs(
+    title = "Distribution of Pearl Colour Categories",
+    x = "Pearl Grading Data Colour",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Load and plot the continuous histogram
+host_dat <- hostquant
+
+plot2 <- ggplot(host_dat, aes(x = pred)) +
+  geom_histogram(binwidth = 0.05, color = "black", fill = "darkorange", boundary = 0) +
+  labs(
+    title = "Distribution of Pearl Colour (pred values)",
+    x = "Predicted Colour Score (pred)",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14)
+
+# Combine plots vertically
+plot1 / plot2 + 
+  plot_layout(heights = c(1, 1))  # Adjust ratio if needed
+
+```
+
+
+
+
+
+
+
 
 
 
@@ -2100,4 +2354,504 @@ blup_host <- blup_host %>%
 head(blup_host[order(-blup_host$EBV), ], 10)
 
 ```
+
+
+
+
+## comparing models area under curve (AUC)
+
+
+Compare binary vs quantitative trait performance using AUC (via ROC curves)
+
+
+#DONOR GOLD
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data
+
+
+# 2. Fix column names and convert to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+
+```
+
+
+```{r}
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+actual_ids <- unique(donor_dat_clean$donor_id)
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+
+#WORKS AUC
+```{r} 
+
+
+library(pROC)
+
+# Step 1: Get the intercept (fixed effect)
+intercept <- summary(mod.ind, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+# Step 2: Add intercept to donor BLUP (on latent scale)
+BLUP$latent_pred <- intercept + BLUP$solution
+
+# Step 3: Convert to predicted probabilities using inverse logit
+BLUP$pred_prob <- plogis(BLUP$latent_pred)
+
+# Step 4: Merge predicted probabilities back to original data
+donor_auc_dat <- donor_dat_clean %>%
+  left_join(BLUP[, c("donor_id", "pred_prob")], by = "donor_id")
+
+# Step 5: Remove any rows with missing predictions
+donor_auc_dat <- donor_auc_dat %>% filter(!is.na(pred_prob))
+
+# Step 6: Compute AUC
+roc_obj <- roc(donor_auc_dat$Gold, donor_auc_dat$pred_prob)
+auc_value <- auc(roc_obj)
+
+# Step 7: Output AUC
+cat("AUC for Gold prediction model:", round(auc_value, 4), "\n")
+
+#AUC for Gold prediction model: 0.9731 
+
+# Optional: Plot ROC curve
+plot(roc_obj, main = "ROC Curve for Gold Prediction (Donor Model)")
+
+
+
+```
+
+
+
+
+
+
+# DONOR QUANTITATIVE GOOD
+
+```{r}
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components manually
+vc <- summary(mod_gold)$varcomp
+print(vc)  # Print all variance components
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+vpredict(mod_gold,h2~V1/(V1+V2))
+
+```
+
+
+
+
+
+```{r}
+# Step 1: Extract fixed effect (intercept)
+intercept <- summary(mod_gold, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+# Step 2: Extract donor BLUPs and merge back to individuals
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$offspring_id_donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>%
+  filter(offspring_id_donor %in% unique(donor_dat_clean$offspring_id_donor)) %>%
+  select(offspring_id_donor, EBV = solution)
+
+# Step 3: Merge predictions into the clean dataset
+donor_pred <- donor_dat_clean %>%
+  left_join(blup_gold, by = "offspring_id_donor") %>%
+  mutate(predicted_value = intercept + EBV)
+
+# Step 4: Calculate model performance metrics
+# Correlation between predicted and observed
+cor_value <- cor(donor_pred$predicted_value, donor_pred$pred, use = "complete.obs")
+
+# R² (coefficient of determination)
+r2 <- cor_value^2
+
+# Step 5: Print results
+cat("Predictive correlation (r):", round(cor_value, 4), "\n")
+cat("Coefficient of determination (R²):", round(r2, 4), "\n")
+
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(donor_pred, aes(x = predicted_value, y = pred)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(
+    title = "Observed vs. Predicted Quantitative Gold Scores",
+    x = "Predicted Gold Score",
+    y = "Observed Gold Score (pred)"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+
+
+
+```{r}
+# Example: define top 25% as 'Gold' (positive class), rest as 'Non-Gold'
+threshold <- quantile(donor_dat_clean$pred, 0.75)
+donor_dat_clean$Gold_binary <- ifelse(donor_dat_clean$pred > threshold, 1, 0)
+
+# Get fixed effect (intercept)
+intercept <- summary(mod_gold, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+# Extract donor EBVs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$offspring_id_donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>%
+  select(offspring_id_donor, EBV = solution)
+
+# Merge into main data
+donor_pred <- donor_dat_clean %>%
+  left_join(blup_gold, by = "offspring_id_donor") %>%
+  mutate(predicted_value = intercept + EBV)
+
+
+library(pROC)
+
+# Remove NAs
+donor_pred <- donor_pred %>% filter(!is.na(predicted_value), !is.na(Gold_binary))
+
+# Compute ROC and AUC
+roc_obj <- roc(donor_pred$Gold_binary, donor_pred$predicted_value)
+auc_value <- auc(roc_obj)
+
+# Print AUC
+cat("AUC based on thresholded Gold classification:", round(auc_value, 4), "\n")
+
+#AUC based on thresholded Gold classification: 0.8427
+
+# Optional: plot ROC curve
+plot(roc_obj, main = "ROC Curve for Gold Classification (Quantitative Model)")
+
+```
+
+
+
+
+# wrong youden
+```{r}
+# Load required libraries
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(pROC)
+
+# Step 1: Prepare pedigree
+ped <- donorquant %>%
+  filter(!is.na(offspring_id_donor), !is.na(sire_donor), !is.na(dam_donor)) %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(ped)
+
+# Step 2: Filter clean data
+donor_dat_clean <- donorquant %>%
+  filter(!is.na(offspring_id_donor), !is.na(sire_donor), !is.na(dam_donor), !is.na(pred)) %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    sire_donor = as.factor(sire_donor),
+    dam_donor = as.factor(dam_donor)
+  )
+
+# Step 3: Fit Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Step 4: Extract predicted values
+# Fixed intercept
+intercept <- summary(mod_gold, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+# Random donor BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$offspring_id_donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>%
+  select(offspring_id_donor, EBV = solution)
+
+# Merge into dataset
+donor_pred <- donor_dat_clean %>%
+  left_join(blup_gold, by = "offspring_id_donor") %>%
+  mutate(predicted_value = intercept + EBV)
+
+# Step 5: Create temporary binary outcome (e.g. top 25% gold score = 1)
+threshold_temp <- quantile(donor_pred$pred, 0.75)
+donor_pred$Gold_binary <- ifelse(donor_pred$pred > threshold_temp, 1, 0)
+
+# Step 6: Compute ROC and Youden’s Index
+roc_obj <- roc(donor_pred$Gold_binary, donor_pred$predicted_value, direction = "<")
+
+# Youden’s Index for optimal threshold
+youden <- coords(
+  roc_obj, 
+  x = "best", 
+  best.method = "youden",
+  ret = c("threshold", "sensitivity", "specificity", "youden")
+)
+
+# Output results (corrected using [[...]] to extract values)
+cat("Optimal threshold (Youden):", round(youden[["threshold"]], 4), "\n")
+cat("Sensitivity:", round(youden[["sensitivity"]], 4), "\n")
+cat("Specificity:", round(youden[["specificity"]], 4), "\n")
+cat("Youden's Index:", round(youden[["youden"]], 4), "\n")
+
+
+# Step 7: Plot ROC Curve
+plot(roc_obj, main = "ROC Curve for Gold Prediction (Quantitative Model)")
+abline(a = 0, b = 1, lty = 2, col = "gray")
+
+```
+
+
+
+
+# correct youden
+```{r}
+# Load required libraries
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(pROC)
+
+# Step 1: Prepare the pedigree
+ped <- donorquant %>%
+  filter(!is.na(offspring_id_donor), !is.na(sire_donor), !is.na(dam_donor)) %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(ped)
+
+# Step 2: Clean donor data
+donor_dat_clean <- donorquant %>%
+  filter(!is.na(offspring_id_donor), !is.na(sire_donor), !is.na(dam_donor), !is.na(pred)) %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    sire_donor = as.factor(sire_donor),
+    dam_donor = as.factor(dam_donor)
+  )
+
+# Step 3: Fit Gaussian ASReml model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Step 4: Extract predicted values
+intercept <- summary(mod_gold, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$offspring_id_donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% select(offspring_id_donor, EBV = solution)
+
+# Step 5: Merge predicted values into dataset
+donor_pred <- donor_dat_clean %>%
+  left_join(blup_gold, by = "offspring_id_donor") %>%
+  mutate(predicted_value = intercept + EBV)
+
+# Step 6: Create temporary binary label based on pred
+threshold_temp <- quantile(donor_pred$pred, 0.75)
+donor_pred <- donor_pred %>%
+  mutate(Gold_binary = ifelse(pred > threshold_temp, 1, 0)) %>%
+  filter(!is.na(Gold_binary), !is.na(predicted_value))
+
+# Step 7: Compute ROC and AUC
+roc_obj <- roc(donor_pred$Gold_binary, donor_pred$predicted_value, direction = "<")
+auc_val <- auc(roc_obj)
+
+# Step 8: Compute Youden’s Index properly
+youden <- coords(
+  roc_obj, 
+  x = "best", 
+  best.method = "youden", 
+  ret = c("threshold", "sensitivity", "specificity")
+)
+youden_index <- youden[["sensitivity"]] + youden[["specificity"]] - 1
+
+# Step 9: Print results
+cat("AUC:", round(auc_val, 4), "\n")
+cat("Optimal threshold (Youden):", round(youden[["threshold"]], 4), "\n")
+cat("Sensitivity:", round(youden[["sensitivity"]], 4), "\n")
+cat("Specificity:", round(youden[["specificity"]], 4), "\n")
+cat("Youden's Index:", round(youden_index, 4), "\n")
+
+# Step 10: Plot ROC Curve
+plot(roc_obj, main = "ROC Curve for Gold Prediction (Quantitative Model)")
+abline(a = 0, b = 1, col = "gray", lty = 2)
+
+```
+
+
 
