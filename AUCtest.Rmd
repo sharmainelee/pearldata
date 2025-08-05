@@ -638,6 +638,37 @@ print(conf_mat)
 
 ```
 
+
+
+```{r}
+
+ggplot(data=b_pred_df, mapping=aes(x=solution, fill=true_colour)) + geom_histogram()
+
+ggplot(data=b_pred_df, mapping=aes(x=solution, fill=true_colour)) + geom_density()
+```
+
+```{r}
+library(dplyr)
+
+b_pred_df <- b_pred_df %>%
+  rename(EBV = solution)
+
+library(ggplot2)
+
+ggplot(data = b_pred_df, mapping = aes(x = EBV, fill = true_colour)) +
+  geom_histogram(binwidth = 0.05, color = "black", alpha = 0.7) +
+  labs(title = "Distribution of EBVs by True Colour", x = "Estimated Breeding Value (EBV)", y = "Count") +
+  theme_minimal()
+
+ggplot(data = b_pred_df, mapping = aes(x = EBV, fill = true_colour)) +
+  geom_density(alpha = 0.6) +
+  labs(title = "Density of EBVs by True Colour", x = "Estimated Breeding Value (EBV)", y = "Density") +
+  theme_minimal()
+
+
+```
+
+
 #####
 
 #DONOR GOLD traditional binary
