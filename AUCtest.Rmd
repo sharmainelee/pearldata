@@ -1,0 +1,895 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-07-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#DONOR GOLD traditional binary
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data
+
+
+# 2. Fix column names and convert to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+
+
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+actual_ids <- unique(donor_dat_clean$donor_id)
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+
+#quantitative 
+# DONOR QUANTITATIVE 
+
+```{r}
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components manually
+vc <- summary(mod_gold)$varcomp
+print(vc)  # Print all variance components
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+vpredict(mod_gold,h2~V1/(V1+V2))
+
+```
+
+
+
+
+```{r}
+# Load libraries
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(pROC)
+
+### === CLEAN AND PREPARE DATA === ###
+
+# 1. Clean donor data
+donor_dat_clean <- donorquant %>%
+  filter(!is.na(offspring_id_donor), !is.na(sire_donor), !is.na(dam_donor), !is.na(pred)) %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    sire_donor = as.factor(sire_donor),
+    dam_donor = as.factor(dam_donor)
+  )
+
+# 2. Define binary trait using Youden's Index threshold
+youden_threshold <- 0.1554
+donor_dat_clean <- donor_dat_clean %>%
+  mutate(Gold_binary = ifelse(pred > youden_threshold, 1, 0))
+
+
+### === FIT Gaussian MODEL (mod_gold) === ###
+
+# 3. Prepare pedigree
+ped <- donor_dat_clean %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(ped)
+
+# 4. Fit Gaussian model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# 5. Extract predicted values (intercept + BLUP)
+intercept_gold <- summary(mod_gold, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$offspring_id_donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% select(offspring_id_donor, EBV = solution)
+
+donor_pred_gold <- donor_dat_clean %>%
+  left_join(blup_gold, by = "offspring_id_donor") %>%
+  mutate(predicted_value_gold = intercept_gold + EBV)
+
+
+### === FIT Binary MODEL (mod.ind) === ###
+
+# 6. Reuse Gold_binary as outcome
+donor_dat_bin <- donor_dat_clean %>%
+  mutate(donor_id = as.factor(offspring_id_donor),
+         Gold = Gold_binary)
+
+# 7. Prepare pedigree
+ped_bin <- donor_dat_bin %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(ID = donor_id, SIRE = sire_donor, DAM = dam_donor) %>%
+  mutate(across(everything(), as.factor))
+
+ainv_bin <- ainverse(ped_bin)
+
+# 8. Fit binomial model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv_bin),
+  residual = ~ idv(units),
+  data = donor_dat_bin,
+  family = asr_binomial(link = "logit")
+)
+mod.ind <- update(mod.ind)
+
+# 9. Get predicted probabilities from binomial model
+intercept_bin <- summary(mod.ind, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+blup_bin <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+blup_bin$donor_id <- gsub("^.*\\)_", "", rownames(blup_bin))
+blup_bin <- blup_bin %>%
+  mutate(pred_prob_bin = plogis(intercept_bin + solution)) %>%
+  select(donor_id, pred_prob_bin)
+
+
+### === MERGE AND COMPARE === ###
+
+# 10. Merge both predictions
+donor_pred_all <- donor_pred_gold %>%
+  left_join(blup_bin, by = c("offspring_id_donor" = "donor_id")) %>%
+  filter(!is.na(Gold_binary), !is.na(predicted_value_gold), !is.na(pred_prob_bin))
+
+# 11. Compute ROC curves
+roc_gold <- roc(donor_pred_all$Gold_binary, donor_pred_all$predicted_value_gold, direction = "<")
+roc_bin <- roc(donor_pred_all$Gold_binary, donor_pred_all$pred_prob_bin, direction = "<")
+
+# 12. Print AUC values
+cat("AUC (mod_gold - quantitative):", round(auc(roc_gold), 4), "\n")
+cat("AUC (mod.ind - binary):", round(auc(roc_bin), 4), "\n")
+
+
+
+#AUC (mod_gold - quantitative): 0.8344 #change this to use quantitative EBVs
+
+#AUC (mod.ind - binary): 0.8688 
+
+# 13. DeLong's test for AUC comparison
+roc_comparison <- roc.test(roc_gold, roc_bin)
+print(roc_comparison)
+
+# 14. Plot ROC curves
+plot(roc_gold, col = "blue", main = "ROC Comparison: mod_gold vs mod.ind", legacy.axes = TRUE)
+lines(roc_bin, col = "red")
+legend("bottomright", legend = c("mod_gold (Gaussian)", "mod.ind (Binary)"),
+       col = c("blue", "red"), lwd = 2)
+
+```
+
+
+
+
+
+
+
+
+```{r}
+# Load libraries
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(pROC)
+
+### === CLEAN AND PREPARE DATA === ###
+
+# 1. Clean donor data
+donor_dat_clean <- donorquant %>%
+  filter(!is.na(offspring_id_donor), !is.na(sire_donor), !is.na(dam_donor), !is.na(pred)) %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    sire_donor = as.factor(sire_donor),
+    dam_donor = as.factor(dam_donor)
+  )
+
+# 2. Define binary trait using threshold (e.g. Youden or quantile)
+youden_threshold <- 0.1554
+donor_dat_clean <- donor_dat_clean %>%
+  mutate(Gold_binary = ifelse(pred > youden_threshold, 1, 0))
+
+
+### === FIT Gaussian MODEL (mod_gold) === ###
+
+# 3. Prepare pedigree
+ped <- donor_dat_clean %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(ped)
+
+# 4. Fit Gaussian model
+mod_gold <- asreml(
+  fixed = pred ~ 1,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# 5. Extract predicted values (intercept + BLUP)
+intercept_gold <- summary(mod_gold, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$offspring_id_donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% select(offspring_id_donor, EBV = solution)
+
+donor_pred_gold <- donor_dat_clean %>%
+  left_join(blup_gold, by = "offspring_id_donor") %>%
+  mutate(predicted_value_gold = intercept_gold + EBV)
+
+
+### === FIT Binary MODEL (mod.ind) === ###
+
+# 6. Reuse Gold_binary as outcome
+donor_dat_bin <- donor_dat_clean %>%
+  mutate(donor_id = as.factor(offspring_id_donor),
+         Gold = Gold_binary)
+
+# 7. Prepare pedigree
+ped_bin <- donor_dat_bin %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(ID = donor_id, SIRE = sire_donor, DAM = dam_donor) %>%
+  mutate(across(everything(), as.factor))
+
+ainv_bin <- ainverse(ped_bin)
+
+# 8. Fit binomial model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv_bin),
+  residual = ~ idv(units),
+  data = donor_dat_bin,
+  family = asr_binomial(link = "logit")
+)
+mod.ind <- update(mod.ind)
+
+# 9. Get predicted probabilities from binomial model
+intercept_bin <- summary(mod.ind, coef = TRUE)$coef.fixed["(Intercept)", "solution"]
+
+blup_bin <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+blup_bin$donor_id <- gsub("^.*\\)_", "", rownames(blup_bin))
+blup_bin <- blup_bin %>%
+  mutate(pred_prob_bin = plogis(intercept_bin + solution)) %>%
+  select(donor_id, pred_prob_bin)
+
+
+### === MERGE AND COMPARE === ###
+
+# 10. Merge both predictions
+donor_pred_all <- donor_pred_gold %>%
+  left_join(blup_bin, by = c("offspring_id_donor" = "donor_id")) %>%
+  filter(!is.na(Gold_binary), !is.na(predicted_value_gold), !is.na(pred_prob_bin))
+
+# 11. Compute ROC curves
+roc_gold <- roc(donor_pred_all$Gold_binary, donor_pred_all$predicted_value_gold, direction = "<")
+roc_bin <- roc(donor_pred_all$Gold_binary, donor_pred_all$pred_prob_bin, direction = "<")
+
+# 12. AUC values
+auc_gold <- auc(roc_gold)
+auc_bin <- auc(roc_bin)
+
+cat("AUC (mod_gold - quantitative):", round(auc_gold, 4), "\n")
+cat("AUC (mod.ind - binary):", round(auc_bin, 4), "\n")
+
+
+### === YOUDEN'S INDEX COMPARISON === ###
+
+# Gaussian model Youden
+coords_gold <- coords(roc_gold, x = "best", best.method = "youden", transpose = FALSE)
+youden_index_gold <- coords_gold["sensitivity"] + coords_gold["specificity"] - 1
+
+# Binary model Youden
+coords_bin <- coords(roc_bin, x = "best", best.method = "youden", transpose = FALSE)
+youden_index_bin <- coords_bin["sensitivity"] + coords_bin["specificity"] - 1
+
+# Print Youden's Index summary
+cat("\nYouden's Index (mod_gold - quantitative):", round(youden_index_gold[[1]], 4), "\n")
+
+cat("Threshold:", round(as.numeric(coords_gold["threshold"]), 4),
+    "Sensitivity:", round(as.numeric(coords_gold["sensitivity"]), 4),
+    "Specificity:", round(as.numeric(coords_gold["specificity"]), 4), "\n")
+
+
+cat("Youden's Index (mod.ind - binary):", round(youden_index_bin[[1]], 4), "\n")
+
+cat("Threshold:", round(coords_bin[["threshold"]], 4), 
+    "Sensitivity:", round(coords_bin[["sensitivity"]], 4), 
+    "Specificity:", round(coords_bin[["specificity"]], 4), "\n")
+
+
+
+### === AUC COMPARISON (DeLong’s test) === ###
+
+roc_comparison <- roc.test(roc_gold, roc_bin)
+print(roc_comparison)
+
+
+### === PLOT ROC CURVES === ###
+
+plot(roc_gold, col = "blue", main = "ROC: Gaussian vs Binary Models", legacy.axes = TRUE)
+lines(roc_bin, col = "red")
+legend("bottomright", legend = c("mod_gold (Gaussian)", "mod.ind (Binary)"),
+       col = c("blue", "red"), lwd = 2)
+
+
+
+# Add DeLong's test result
+z_stat <- round(roc_comparison$statistic, 4)
+p_val <- round(roc_comparison$p.value, 5)
+auc_diff_ci <- round(as.numeric(roc_comparison$conf.int), 4)
+
+# Create summary table
+model_summary <- data.frame(
+  Model = c("Gaussian (mod_gold)", "Binary (mod.ind)"),
+  AUC = c(round(auc_gold, 4), round(auc_bin, 4)),
+  Youden_Index = c(round(youden_index_gold[[1]], 4), round(youden_index_bin[[1]], 4)),
+  Threshold = c(round(as.numeric(coords_gold["threshold"]), 4),
+                round(as.numeric(coords_bin["threshold"]), 4)),
+  Sensitivity = c(round(as.numeric(coords_gold["sensitivity"]), 4),
+                  round(as.numeric(coords_bin["sensitivity"]), 4)),
+  Specificity = c(round(as.numeric(coords_gold["specificity"]), 4),
+                  round(as.numeric(coords_bin["specificity"]), 4))
+)
+
+# Print main table
+print(model_summary)
+
+# Print DeLong's test summary
+cat("\nDeLong's Test Summary:\n")
+cat("Z statistic:", z_stat, "\n")
+cat("p-value:", p_val, "\n")
+cat("95% CI for AUC difference:", auc_diff_ci[1], "to", auc_diff_ci[2], "\n")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+Comparing EBV values to True Gold Values
+```{r}
+blup_gold$donor = as.numeric(blup_gold$donor)
+pearl_df = read_csv("C:/Users/User2/Documents/pearl_project/PearlOperationalData.csv")
+p_df = pearl_df %>% select(c("First_Op_Data_Saibo_No", "Pearl_Grading_Data_Unique_Code", "Pearl_Grading_Data_Colour"))
+```
+
+```{r}
+p_df = p_df %>% 
+  rename(donor = "First_Op_Data_Saibo_No", true_colour = "Pearl_Grading_Data_Colour", pearl_id = "Pearl_Grading_Data_Unique_Code")
+p_df$donor = as.numeric(p_df$donor)
+```
+
+```{r}
+pred_df = left_join(p_df, blup_gold, by="donor")
+```
+
+```{r}
+pred_df = na.omit(pred_df)
+```
+
+```{r}
+pred_df$pred_colour = ifelse(pred_df$EBV > 0.125, "Gold", "Other")
+pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour), "Gold", "Other")
+table(pred_df$true_colour, pred_df$pred_colour)
+
+# confusion matrix 
+# next step: binary confusion matrix
+#compare with the same threshold
+# search more on ebv 
+```
+
+
+
+
+
+## binary model
+
+
+Comparing EBV values to True Gold Values
+```{r}
+
+#ignore
+BLUP$donor_id = as.numeric(BLUP$donor_id)
+binary_pearl_df = read_csv("C:/Users/User2/Documents/pearl_project/PearlOperationalData.csv")
+b_p_df = binary_pearl_df %>% select(c("First_Op_Data_Saibo_No", "Pearl_Grading_Data_Unique_Code", "Pearl_Grading_Data_Colour"))
+
+
+
+b_p_df = b_p_df %>% 
+  rename(donor = "First_Op_Data_Saibo_No", true_colour = "Pearl_Grading_Data_Colour", pearl_id = "Pearl_Grading_Data_Unique_Code")
+b_p_df$donor = as.numeric(b_p_df$donor)
+
+
+
+b_pred_df = left_join(b_p_df, BLUP, by="donor")
+
+
+
+b_pred_df = na.omit(b_pred_df)
+
+
+
+b_pred_df$pred_colour = ifelse(b_pred_df$solution > 0.125, "Gold", "Other")
+b_pred_df$true_colour = ifelse(grepl("^Gold", b_pred_df$true_colour), "Gold", "Other")
+table(b_pred_df$true_colour, b_pred_df$pred_colour)
+
+# confusion matrix 
+# next step: binary confusion matrix
+#compare with the same threshold
+# search more on ebv 
+```
+
+##
+
+
+```{r}
+# Load pearl grading data
+binary_pearl_df <- read_csv("C:/Users/User2/Documents/pearl_project/PearlOperationalData.csv")
+
+# Select relevant columns
+b_p_df <- binary_pearl_df %>%
+  select(First_Op_Data_Saibo_No, Pearl_Grading_Data_Unique_Code, Pearl_Grading_Data_Colour) %>%
+  rename(
+    donor = First_Op_Data_Saibo_No,
+    pearl_id = Pearl_Grading_Data_Unique_Code,
+    true_colour = Pearl_Grading_Data_Colour
+  )
+
+# Ensure donor IDs are numeric for join
+b_p_df$donor <- as.numeric(b_p_df$donor)
+BLUP$donor_id <- as.numeric(BLUP$donor_id)
+
+# Rename for clarity before joining
+colnames(BLUP)[colnames(BLUP) == "donor_id"] <- "donor"
+
+# Join EBV data with phenotype data
+b_pred_df <- left_join(b_p_df, BLUP, by = "donor")
+
+# Remove incomplete cases
+b_pred_df <- na.omit(b_pred_df)
+
+# Classify predicted colour based on EBV threshold
+b_pred_df$pred_colour <- ifelse(b_pred_df$solution > 0.125, "Gold", "Other")
+
+# Standardize true colour classification
+b_pred_df$true_colour <- ifelse(grepl("^Gold", b_pred_df$true_colour, ignore.case = TRUE), "Gold", "Other")
+
+# Generate confusion matrix
+conf_mat <- table(True = b_pred_df$true_colour, Predicted = b_pred_df$pred_colour)
+print(conf_mat)
+
+```
+
+#####
+
+#DONOR GOLD traditional binary
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data
+
+
+# 2. Fix column names and convert to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+vpredict(mod.ind,h2~V1/(V1+V2))
+
+
+
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+actual_ids <- unique(donor_dat_clean$donor_id)
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+```
+
+
+
+
+
+
+
+
+
+
+## retype the console for the confusion matrix 5 aug
+
+```{r}
+table(ifelse(as.numeric(blup_gold$EBV) > 0, "1", "0"))
+
+pearl_df = read_csv("C:\Users\User2\Downloads\quantitative_pearl_colour_measures (1).csv")
+
+pearl_df = read_csv("C:/Users/User2/Documents/pearl_project/PearlOperationalData.csv")
+
+p_df = pearl_df %>% select(c("First_Op_Data_Saibo_No", "Pearl_Grading_Data_Unique_Code", "Pearl_Grading_Data_Colour"))
+
+p_df
+
+blup_gold
+
+
+```
+
+
+```{r}
+p_df = pearl_df %>% select(c("First_Op_Data_Saibo_No", "Pearl_Grading_Data_Unique_Code", "Pearl_Grading_Data_Colour"))
+
+p_df = p_df %>% 
++   rename(donor = "First_Op_Data_Saibo_No", true_colour = "Pearl_Grading_Data_Colour", pearl_id = "Pearl_Grading_Data_Unique_Code")
+
+p_df$donor = as.numeric(p_df$donor)
+
+pred_df = left_join(p_df, blup_gold, by="donor")
+
+pred_df
+```
+
+
+```{r}
+View(donor_dat)
+View(donorquant)
+
+pred_df = na.omit(pred_df)
+View(pred_df)
+
+pred_df$pred_colour = ifelse(pred_df$EBV > 0, "1", "0")
+#pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour))
+ pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour), "Gold", "Other")
+ pred_df$pred_colour = ifelse(pred_df$EBV > 0, "Gold", "Other")
+table(pred_df$true_colour, pred_df$pred_colour)
+
+summary(pred_df$EBV)
+
+ggplot(data=pred_df, mapping=aes(x=EBV, fill=true_colour)) + geom_histogram()
+
+ggplot(data=pred_df, mapping=aes(x=EBV, fill=true_colour)) + geom_density()
+
+table(pred_df$true_colour)
+
+table(p_df$true_colour)
+
+table(pred_df$true_colour, pred_df$pred_colour)
+
+#p_df = p_df %>% 
+#+   rename(donor = "First_Op_Data_Saibo_No", true_colour = "Pearl_Grading_Data_Colour", pearl_id = "Pearl_Grading_Data_Unique_Code")
+
+
+pred_df$pred_colour = ifelse(pred_df$EBV > 0.1, "Gold", "Other")
+pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour), "Gold", "Other")
+table(pred_df$true_colour, pred_df$pred_colour)
+
+
+pred_df$pred_colour = ifelse(pred_df$EBV > 0.15, "Gold", "Other")
+table(pred_df$true_colour, pred_df$pred_colour)
+
+pred_df$pred_colour = ifelse(pred_df$EBV > 0.2, "Gold", "Other")
+ table(pred_df$true_colour, pred_df$pred_colour)
+ 
+ 
+ pred_df$pred_colour = ifelse(pred_df$EBV > 0.125, "Gold", "Other")
+ table(pred_df$true_colour, pred_df$pred_colour)
+ 
+ 
+ pred_df$pred_colour = ifelse(pred_df$EBV > 0.1, "Gold", "Other")
+ pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour), "Gold", "Other")
+ table(pred_df$true_colour, pred_df$pred_colour)
+ 
+ 
+ hist(pred_df$EBV)
+ table(p_df$true_colour)
+ 
+ 28/nrow(p_df)
+ summary(pred_df$EBV)
+ ?percentile
+ ??percentile
+ quantile(pred_df$EBV)
+ ?quantile
+ quantile(pred_df$EBV)
+ 
+ ?quantile
+ quantile(pred_df$EBV, probs=0.97)
+ 
+ pred_df$pred_colour = ifelse(pred_df$EBV > 0.45, "Gold", "Other")
+ pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour), "Gold", "Other")
+ table(pred_df$true_colour, pred_df$pred_colour)
+ 
+ quantile(pred_df$EBV, probs=0.95)
+ 
+ pred_df$pred_colour = ifelse(pred_df$EBV > 0.22, "Gold", "Other")
+ table(pred_df$true_colour, pred_df$pred_colour)
+ 
+ pred_df$pred_colour = ifelse(pred_df$EBV > 0.1, "Gold", "Other")
+ pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour), "Gold", "Other")
+ table(pred_df$true_colour, pred_df$pred_colour)
+ 
+
+```
+
