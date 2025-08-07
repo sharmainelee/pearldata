@@ -924,3 +924,199 @@ pred_df$pred_colour = ifelse(pred_df$EBV > 0.2, "Gold", "Other")
 
 ```
 
+
+
+## 7 aug - trying to find the average 'goldness' value per donor
+
+
+#DONOR GOLD traditional binary
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data
+
+
+# 2. Fix column names and convert to factors
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam = as.factor(dam),
+    Sire = as.factor(sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# 4. Filter for complete cases required for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id),
+    !is.na(Sire),
+    !is.na(Dam)
+  )
+
+# Calculate average gold proportion per donor
+goldness_summary <- donor_dat_clean %>%
+  group_by(donor_id) %>%
+  summarise(
+    n_pearls = n(),
+    mean_gold = mean(Gold, na.rm = TRUE)  # proportion of gold pearls
+  ) %>%
+  arrange(desc(mean_gold))
+
+# View summary
+print(goldness_summary)
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+
+
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- 1
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+actual_ids <- unique(donor_dat_clean$donor_id)
+BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+# Merge BLUPs with goldness summary
+merged_df <- BLUP %>%
+  left_join(goldness_summary, by = "donor_id")
+
+# View merged table
+print(merged_df)
+
+
+#ggplot
+
+library(ggplot2)
+
+ggplot(merged_df, aes(x = prob_gold, y = mean_gold)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(
+    x = "Predicted Probability of Gold (EBV)",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Donor EBV vs Actual Gold Proportion"
+  ) +
+  theme_minimal()
+
+library(ggplot2)
+
+ggplot(merged_df, aes(x = prob_gold, y = mean_gold)) +
+  geom_point(aes(color = "Observed Data")) +
+  geom_smooth(aes(color = "Linear Fit"), method = "lm", se = FALSE) +
+  labs(
+    x = "Predicted Probability of Gold (EBV)",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Donor EBV vs Actual Gold Proportion",
+    color = "Legend"
+  ) +
+  scale_color_manual(values = c("Observed Data" = "black", "Linear Fit" = "blue")) +
+  theme_minimal()
+
+cor.test(merged_df$prob_gold, merged_df$mean_gold, method = "pearson")
+
+
+
+```
+
+
+
+
+
+
+
+
