@@ -5161,6 +5161,420 @@ cor.test(plot_df$EBV, plot_df$prop_gold, method = "pearson")
 
 
 
+
+```{r}
+# Calculate observed gold proportion
+obs_gold <- donor_dat_clean %>%
+  group_by(donor_id) %>%
+  summarise(
+    n = n(),
+    prop_gold = mean(Gold, na.rm = TRUE)
+  )
+
+# Prepare BLUP table
+BLUP$donor_id <- as.factor(BLUP$donor_id)
+merged <- left_join(obs_gold, BLUP, by = "donor_id")
+
+lm_ebv_gold <- lm(prop_gold ~ solution, data = merged)
+summary(lm_ebv_gold)
+
+library(ggplot2)
+
+ggplot(merged, aes(x = solution, y = prop_gold)) +
+  geom_point(color = "black") +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(
+    x = "Estimated Breeding Value (EBV)",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Linear Relationship between EBV and Observed Gold Proportion"
+  ) +
+  theme_minimal()
+
+# Calculate Pearson correlation
+cor_test <- cor.test(merged$solution, merged$prop_gold, method = "pearson")
+
+# Print results
+print(cor_test)
+
+
+
+```
+
+
+
+#no fixed effects can't use this exponential 
+```{r}
+
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+# Load required library
+library(ggplot2)
+
+# --- Step 1: Rename EBV column and ensure donor_id is a factor ---
+BLUP <- BLUP %>%
+  rename(EBV = solution) %>%
+  mutate(donor_id = as.factor(donor_id))
+
+
+# --- Step 2: Calculate observed proportion of Gold pearls per donor ---
+obs_gold <- donor_dat_clean %>%
+  group_by(donor_id) %>%
+  summarise(
+    prop_gold = mean(Gold, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# --- Step 3: Merge EBVs with observed gold proportion ---
+plot_df <- BLUP %>%
+  inner_join(obs_gold, by = "donor_id") %>%
+  filter(!is.na(EBV), !is.na(prop_gold))
+
+# --- Step 4: Exponential model fit ---
+plot_df <- plot_df %>%
+  mutate(prop_gold_adj = pmax(prop_gold, 1e-6))  # avoid log(0)
+
+# Starting values from log-linear regression
+start_vals <- coef(lm(log(prop_gold_adj) ~ EBV, data = plot_df))
+start_a <- exp(start_vals[1])
+start_b <- start_vals[2]
+
+# Fit exponential model: y = a * exp(b * x)
+exp_model <- nls(prop_gold_adj ~ a * exp(b * EBV),
+                 data = plot_df,
+                 start = list(a = start_a, b = start_b),
+                 control = list(maxiter = 200, warnOnly = TRUE))
+
+# --- Step 5: Generate fitted curve ---
+curve_df <- data.frame(EBV = seq(min(plot_df$EBV), max(plot_df$EBV), length.out = 200))
+curve_df$pred <- predict(exp_model, newdata = curve_df)
+
+# --- Step 6: Plot without point size ---
+ggplot(plot_df, aes(x = EBV, y = prop_gold)) +
+  geom_point(color = "darkgoldenrod", alpha = 0.8) +
+  geom_line(data = curve_df, aes(x = EBV, y = pred), color = "black", linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1), expand = expansion(mult = c(0.02, 0.02))) +
+  labs(
+    x = "Estimated Breeding Value (EBV) for Gold",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Donor EBV vs Observed Gold Proportion",
+    subtitle = "Fitted with exponential model: y = a · exp(b · EBV)"
+  ) +
+  theme_minimal(base_size = 13)
+
+# Optional: print model coefficients
+cat("Fitted exponential model:\n")
+print(coef(exp_model))
+
+cor(plot_df$EBV, plot_df$prop_gold, method = "pearson", use = "complete.obs")
+
+cor.test(plot_df$EBV, plot_df$prop_gold, method = "pearson")
+
+
+
+```
+
+
+#can't use this no fixed effects linear regression 
+
+```{r}
+
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+# quantitative model no fixed effects
+
+# Calculate observed gold proportion
+obs_gold <- donor_dat_clean %>%
+  group_by(donor_id) %>%
+  summarise(
+    n = n(),
+    prop_gold = mean(Gold, na.rm = TRUE)
+  )
+
+# Prepare BLUP table
+BLUP$donor_id <- as.factor(BLUP$donor_id)
+merged <- left_join(obs_gold, BLUP, by = "donor_id")
+
+lm_ebv_gold <- lm(prop_gold ~ solution, data = merged)
+summary(lm_ebv_gold)
+
+library(ggplot2)
+
+ggplot(merged, aes(x = solution, y = prop_gold)) +
+  geom_point(color = "black") +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(
+    x = "Estimated Breeding Value (EBV)",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Linear Relationship between EBV and Observed Gold Proportion"
+  ) +
+  theme_minimal()
+
+# Calculate Pearson correlation
+cor_test <- cor.test(merged$solution, merged$prop_gold, method = "pearson")
+
+# Print results
+print(cor_test)
+
+
+
+```
+
+
+
+
 ```{r}
 
 #WORKS
@@ -5264,6 +5678,122 @@ ggplot(merged_df, aes(x = EBV, y = mean_gold)) +
 cor_test_result <- cor.test(merged_df$EBV, merged_df$mean_gold, method = "pearson")
 print(cor_test_result)
 ```
+
+
+
+
+```{r}
+
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred) & !is.na(Matched_Donor_Data_Nacre_lip_colour_Round) & !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+
+# Calculate average "goldness" (pred) for each donor
+mean_goldness <- donor_dat %>%
+  filter(!is.na(pred), !is.na(offspring_id_donor)) %>%
+  group_by(offspring_id_donor) %>%
+  summarise(mean_gold = mean(pred, na.rm = TRUE),
+            n_pearls = n()) %>%
+  ungroup()
+
+# OPTIONAL: View summary
+print(head(mean_goldness))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components manually
+vc <- summary(mod_gold)$varcomp
+print(vc)  # Print all variance components
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+vpredict(mod_gold,h2~V1/(V1+V2))
+
+
+# Merge mean_gold with BLUPs (EBVs)
+merged_df <- left_join(mean_goldness, blup_gold, by = c("offspring_id_donor" = "donor"))
+
+
+# View merged table
+print(merged_df)
+
+# Merge EBV and mean_goldness
+merged_df <- blup_gold %>%
+  select(donor, EBV) %>%
+  inner_join(mean_goldness, by = c("donor" = "offspring_id_donor"))
+
+# Check merged result
+head(merged_df)
+
+# Load ggplot2 
+library(ggplot2)
+
+# Scatter plot + linear regression line
+ggplot(merged_df, aes(x = EBV, y = mean_gold)) +
+  geom_point(aes(color = "Observed Data")) +
+  geom_smooth(method = "lm", se = FALSE, aes(color = "Linear Fit")) +
+  scale_color_manual(values = c("Observed Data" = "black", "Linear Fit" = "blue")) +
+  labs(
+    x = "Estimated Breeding Value (EBV)",
+    y = "Mean Predicted Colour (Goldness)",
+    title = "Donor EBV vs Mean Goldness",
+    color = "Legend"
+  ) +
+  theme_minimal()
+
+# Pearson correlation
+cor_test_result <- cor.test(merged_df$EBV, merged_df$mean_gold, method = "pearson")
+print(cor_test_result)
+
+```
+
+
+
+
+
+
 
 
 
@@ -5376,6 +5906,7 @@ table(pred_df$true_colour, pred_df$pred_colour)
 
 
 ```{r}
+#might be wrong
 # Load ROC library
 library(pROC)
 
@@ -5605,7 +6136,7 @@ head(BLUP)
 
 ```
 
-
+#0.216018437
 
 ```{r}
 # Load pearl grading data
@@ -5634,7 +6165,7 @@ b_pred_df <- left_join(b_p_df, BLUP, by = "donor")
 b_pred_df <- na.omit(b_pred_df)
 
 # Classify predicted colour based on EBV threshold
-b_pred_df$pred_colour <- ifelse(b_pred_df$solution > 0.125, "Gold", "Other")
+b_pred_df$pred_colour <- ifelse(b_pred_df$solution > 0, "Gold", "Other")
 
 # Standardize true colour classification
 b_pred_df$true_colour <- ifelse(grepl("^Gold", b_pred_df$true_colour, ignore.case = TRUE), "Gold", "Other")
@@ -5642,9 +6173,15 @@ b_pred_df$true_colour <- ifelse(grepl("^Gold", b_pred_df$true_colour, ignore.cas
 # Generate confusion matrix
 conf_mat <- table(True = b_pred_df$true_colour, Predicted = b_pred_df$pred_colour)
 print(conf_mat)
+
+#conf_mat <- table(True = b_pred_df$pred_colour, Predicted = b_pred_df$true_colour)
+#print(conf_mat)
 ```
 
 ```{r}
+
+#pred_colour 
+
 library(ggplot2)
 
 ggplot(b_pred_df, aes(x = solution, fill = true_colour)) +
@@ -5689,4 +6226,53 @@ ggplot(b_pred_df, aes(x = true_colour, y = solution, fill = true_colour)) +
   theme_minimal()
 
 ```
+
+```{r}
+
+#ignore this 
+# Load pROC for ROC analysis
+library(pROC)
+
+# Create binary (0/1) outcome for ROC
+b_pred_df$true_binary <- ifelse(b_pred_df$true_colour == "Gold", 1, 0)
+
+# Generate ROC curve using EBVs (solution column)
+roc_obj <- roc(b_pred_df$true_binary, b_pred_df$solution)
+
+# Find optimal threshold with Youden's Index
+youden <- coords(roc_obj, x = "best", best.method = "youden", ret = c("threshold", "sensitivity", "specificity", "accuracy"))
+print(youden)
+
+# Optional: plot ROC curve
+plot(roc_obj, col = "blue", lwd = 2, main = "ROC Curve for Binary Gold Model")
+abline(a = 0, b = 1, lty = 2, col = "gray")
+
+```
+
+```{r}
+test_df = b_pred_df
+
+f1_scores = c()
+accuracies = c()
+misclasses = c()
+thresholds = seq(min(b_pred_df$solution), max(b_pred_df$solution), length.out=1000)
+i=1
+
+for (threshold in thresholds) {
+  test_df$pred_colour <- ifelse(test_df$solution > threshold, "Gold", "Other")
+  test_cm = table(Pred = test_df$pred_colour, True = test_df$true_colour)
+  # f1 = ifelse(dim(test_cm)==c(2,2), 2*test_cm[1,1]/(2*test_cm[1,1]+test_cm[1,2]+test_cm[2,1]), 0)
+  # f1_scores[i] = f1
+  # accuracy = ifelse(dim(test_cm)==c(2,2), sum(diag(test_cm))/sum(test_cm), 0)
+  # accuracies[i] = accuracy
+  misclass = ifelse(dim(test_cm)==c(2,2) & test_cm[2,1]==0, test_cm[1,2]+test_cm[2,1], NA)
+  misclasses[i] = misclass
+  i=i+1
+}
+
+results = cbind(thresholds, f1_scores, accuracies, misclasses)
+```
+
+
+
 
