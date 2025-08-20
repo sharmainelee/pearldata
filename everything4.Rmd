@@ -4864,6 +4864,292 @@ ggplot(top_families, aes(x = reorder(factor(family_number), n), y = n)) +
 ```
 
 
+
+
+#NEW HOST FAMILY DISTRIBUTION WITH COLOUR
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Step 1: Create family_key and family_number
+pedigree_host <- pedigree_host2 %>%
+  mutate(
+    family_key = paste(sire_host, dam_host, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# Step 2: Create binary colour columns (edit "Champ" to "Champagne" for consistency)
+pedigree_host <- pedigree_host %>%
+  mutate(
+    Gold       = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver     = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White      = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream      = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champagne  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)  # renamed
+  )
+
+# Step 3: Summarise by family_number
+family_summary <- pedigree_host %>%
+  group_by(family_number) %>%
+  summarise(
+    family_size    = n(),
+    Gold_count     = sum(Gold, na.rm = TRUE),
+    Silver_count   = sum(Silver, na.rm = TRUE),
+    White_count    = sum(White, na.rm = TRUE),
+    Cream_count    = sum(Cream, na.rm = TRUE),
+    Champagne_count = sum(Champagne, na.rm = TRUE)
+  ) %>%
+  arrange(desc(family_size))  # Optional sorting
+
+# Step 4: Reshape to long format for ggplot
+family_long <- family_summary %>%
+  pivot_longer(cols = c(Gold_count, Silver_count, White_count, Cream_count, Champagne_count),
+               names_to = "Colour",
+               values_to = "Count") %>%
+  mutate(Colour = gsub("_count", "", Colour))  # Remove "_count" suffix
+
+# Step 5: Define custom colours
+my_colours <- c(
+  Gold = "#FFD700",
+  Silver = "#A9A9A9",
+  White = "#D3D3D3",
+  Cream = "#FFFDD0",
+  Champagne = "#F7E7CE"
+)
+
+# Step 6: Create stacked bar plot
+ggplot(family_long, aes(x = factor(family_number), y = Count, fill = Colour)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "Family Number",
+    y = "Pearl Count",
+    title = "Distribution of Pearl Colours Across Families"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_fill_manual(values = my_colours)
+
+
+
+
+
+
+```
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Step 1: Remove NAs in sire or dam, create family_key and family_number
+pedigree_host <- pedigree_host2 %>%
+  filter(!is.na(sire_host) & !is.na(dam_host)) %>%
+  mutate(
+    family_key = paste(sire_host, dam_host, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# Step 2: Create binary colour columns
+pedigree_host <- pedigree_host %>%
+  mutate(
+    Gold       = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver     = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White      = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream      = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champagne  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Step 3: Summarise by family_number
+family_summary <- pedigree_host %>%
+  group_by(family_number) %>%
+  summarise(
+    family_size     = n(),
+    Gold_count      = sum(Gold, na.rm = TRUE),
+    Silver_count    = sum(Silver, na.rm = TRUE),
+    White_count     = sum(White, na.rm = TRUE),
+    Cream_count     = sum(Cream, na.rm = TRUE),
+    Champagne_count = sum(Champagne, na.rm = TRUE)
+  ) %>%
+  arrange(desc(family_size))
+
+# Step 4: Reshape for ggplot
+family_long <- family_summary %>%
+  pivot_longer(cols = c(Gold_count, Silver_count, White_count, Cream_count, Champagne_count),
+               names_to = "Colour",
+               values_to = "Count") %>%
+  mutate(Colour = gsub("_count", "", Colour))
+
+# Step 5: Define colours
+my_colours <- c(
+  Gold = "#FFD700",
+  Silver = "#A9A9A9",
+  White = "#D3D3D3",
+  Cream = "#FFFDD0",
+  Champagne = "#F7E7CE"
+)
+
+# Step 6: Plot
+ggplot(family_long, aes(x = factor(family_number), y = Count, fill = Colour)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "Family Number",
+    y = "Pearl Count",
+    title = "Distribution of Pearl Colours Across Families"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_fill_manual(values = my_colours)
+
+```
+
+
+#GOOD distribution of pearl colours across families host
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Step 1: Create family_key and family_number
+pedigree_host <- pedigree_host2 %>%
+  mutate(
+    family_key = paste(sire_host, dam_host, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# Step 2: Create binary colour columns
+pedigree_host <- pedigree_host %>%
+  mutate(
+    Gold       = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver     = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White      = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream      = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champagne  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Step 3: Summarise by family_number
+family_summary <- pedigree_host %>%
+  group_by(family_number) %>%
+  summarise(
+    family_size     = n(),
+    Gold_count      = sum(Gold, na.rm = TRUE),
+    Silver_count    = sum(Silver, na.rm = TRUE),
+    White_count     = sum(White, na.rm = TRUE),
+    Cream_count     = sum(Cream, na.rm = TRUE),
+    Champagne_count = sum(Champagne, na.rm = TRUE)
+  ) %>%
+  arrange(desc(family_size))
+
+# Step 4: Reshape and remove NA or 0 counts
+family_long <- family_summary %>%
+  pivot_longer(cols = c(Gold_count, Silver_count, White_count, Cream_count, Champagne_count),
+               names_to = "Colour",
+               values_to = "Count") %>%
+  mutate(Colour = gsub("_count", "", Colour)) %>%
+  filter(!is.na(Count) & Count > 0)  # Remove NA and 0s
+
+# Step 5: Define custom colours
+my_colours <- c(
+  Gold = "#FFD700",
+  Silver = "#A9A9A9",
+  White = "#D3D3D3",
+  Cream = "#FFFDD0",
+  Champagne = "#F7E7CE"
+)
+
+# Step 6: Plot
+ggplot(family_long, aes(x = factor(family_number), y = Count, fill = Colour)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "Family Number",
+    y = "Pearl Count",
+    title = "Distribution of Pearl Colours Across Families"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_fill_manual(values = my_colours)
+
+```
+
+#NEW DONOR 
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Step 1: Create family_key and family_number
+pedigree_donor <- donor_data2 %>%
+  mutate(
+    family_key = paste(`Candidate father ID`, `Candidate mother ID`, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# Step 2: Create binary colour columns
+pedigree_donor <- pedigree_donor %>%
+  mutate(
+    Gold       = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver     = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White      = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream      = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champagne  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Step 3: Summarise by family_number
+family_summary <- pedigree_donor %>%
+  group_by(family_number) %>%
+  summarise(
+    family_size     = n(),
+    Gold_count      = sum(Gold, na.rm = TRUE),
+    Silver_count    = sum(Silver, na.rm = TRUE),
+    White_count     = sum(White, na.rm = TRUE),
+    Cream_count     = sum(Cream, na.rm = TRUE),
+    Champagne_count = sum(Champagne, na.rm = TRUE)
+  ) %>%
+  arrange(desc(family_size))
+
+# Step 4: Reshape and remove NA or 0 counts
+family_long <- family_summary %>%
+  pivot_longer(cols = c(Gold_count, Silver_count, White_count, Cream_count, Champagne_count),
+               names_to = "Colour",
+               values_to = "Count") %>%
+  mutate(Colour = gsub("_count", "", Colour)) %>%
+  filter(!is.na(Count) & Count > 0)  # Remove NA and 0s
+
+# Step 5: Define custom colours
+my_colours <- c(
+  Gold = "#FFD700",
+  Silver = "#A9A9A9",
+  White = "#D3D3D3",
+  Cream = "#FFFDD0",
+  Champagne = "#F7E7CE"
+)
+
+# Step 6: Plot
+ggplot(family_long, aes(x = factor(family_number), y = Count, fill = Colour)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "Family Number",
+    y = "Pearl Count",
+    title = "Distribution of Pearl Colours Across Families"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_fill_manual(values = my_colours)
+```
+
+
+
+
+
+
+
+
+
+
 ## DONOR
 
 
@@ -5876,6 +6162,8 @@ head(blup_gold[order(-blup_gold$EBV), ], 10)
 
 ```
 
+
+
 Comparing EBV values to True Gold Values
 ```{r}
 blup_gold$donor = as.numeric(blup_gold$donor)
@@ -5898,7 +6186,7 @@ pred_df = na.omit(pred_df)
 ```
 
 ```{r}
-pred_df$pred_colour = ifelse(pred_df$EBV > 0.125, "Gold", "Other")
+pred_df$pred_colour = ifelse(pred_df$EBV > 0.04143747, "Gold", "Other")
 pred_df$true_colour = ifelse(grepl("^Gold", pred_df$true_colour), "Gold", "Other")
 table(pred_df$true_colour, pred_df$pred_colour)
 
@@ -5931,8 +6219,107 @@ print(youden)
 
 
 
+## AUC NEW 
 
 
+```{r}
+# Create a binary trait for 'Gold' classification
+donor_dat_clean <- donor_dat_clean %>%
+  mutate(Gold = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0))
+
+
+library(pROC)
+
+# Compute AUC
+roc_gold <- roc(donor_dat_clean$Gold, donor_dat_clean$pred)
+auc(roc_gold)
+
+plot(roc_gold, main = "ROC Curve for Quantitative Model (Gold Colour)")
+
+
+```
+
+
+
+
+#try new good donorquant4
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant4 %>%
+  filter(!is.na(donor_offspring_id) & 
+         !is.na(donor_dam) & 
+         !is.na(donor_sire) & 
+         !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_offspring_id = as.factor(donor_offspring_id),
+    donor_dam = as.factor(donor_dam),
+    donor_sire = as.factor(donor_sire),
+    Matched_Donor_Data_Nacre_lip_colour_Round = as.factor(Matched_Donor_Data_Nacre_lip_colour_Round),
+    Matched_Donor_Data_Nacre_lip_colour_Flat  = as.factor(Matched_Donor_Data_Nacre_lip_colour_Flat)
+  )
+
+# Drop unused factor levels
+donor_dat <- droplevels(donor_dat)
+
+# Filter complete cases including new fixed effects
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(
+    pred,
+    donor_offspring_id,
+    Matched_Donor_Data_Nacre_lip_colour_Round,
+    Matched_Donor_Data_Nacre_lip_colour_Flat
+  ))
+
+# Add units column (required by ASReml)
+donor_dat_clean$units <- 1:nrow(donor_dat_clean)
+
+# Prepare pedigree
+ped <- donor_dat_clean %>%
+  distinct(donor_offspring_id, .keep_all = TRUE) %>%
+  select(ID = donor_offspring_id, SIRE = donor_sire, DAM = donor_dam)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Fit ASReml Gaussian animal model with the two fixed effects
+mod_gold <- asreml(
+  fixed = pred ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_offspring_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components
+vc <- summary(mod_gold)$varcomp
+print(vc)
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Calculate heritability
+vpredict(mod_gold, h2 ~ V1 / (V1 + V2))
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>%
+  filter(donor %in% unique(donor_dat_clean$donor_offspring_id)) %>%
+  rename(EBV = solution)
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+```
 
 
 
@@ -6165,7 +6552,7 @@ b_pred_df <- left_join(b_p_df, BLUP, by = "donor")
 b_pred_df <- na.omit(b_pred_df)
 
 # Classify predicted colour based on EBV threshold
-b_pred_df$pred_colour <- ifelse(b_pred_df$solution > 0, "Gold", "Other")
+b_pred_df$pred_colour <- ifelse(b_pred_df$solution > 0.3388436, "Gold", "Other")
 
 # Standardize true colour classification
 b_pred_df$true_colour <- ifelse(grepl("^Gold", b_pred_df$true_colour, ignore.case = TRUE), "Gold", "Other")
