@@ -6242,7 +6242,7 @@ plot(roc_gold, main = "ROC Curve for Quantitative Model (Gold Colour)")
 
 
 
-#try new good donorquant4
+#try new good donorquant4 !!!
 
 
 ```{r}
@@ -6322,8 +6322,88 @@ head(blup_gold[order(-blup_gold$EBV), ], 10)
 ```
 
 
+```{r}
+
+# --- AUC for quantitative predictor 'pred' vs Gold/non-Gold ---
+
+# 1) Ensure a binary outcome exists (Gold = 1, else 0)
+if ("Pearl_Grading_Data_Colour" %in% names(donor_dat_clean)) {
+  donor_dat_clean <- donor_dat_clean %>%
+    mutate(Gold = as.integer(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE)))
+} else if (!"Gold" %in% names(donor_dat_clean)) {
+  stop("No 'Gold' label found. Add a binary column 'Gold' (1=gold, 0=non-gold) or provide 'Pearl_Grading_Data_Colour'.")
+}
+
+# 2) Install/load pROC if needed
+if (!requireNamespace("pROC", quietly = TRUE)) install.packages("pROC")
+library(pROC)
+
+# 3) Build ROC using the quantitative score 'pred' as the predictor
+#    (Positive class is 1 = Gold)
+roc_gold <- roc(response = donor_dat_clean$Gold,
+                predictor = donor_dat_clean$pred,
+                quiet = TRUE, direction = ">")
+
+# 4) AUC and 95% CI
+auc_val <- auc(roc_gold)
+auc_ci  <- ci.auc(roc_gold)
+
+cat("AUC:", as.numeric(auc_val), "\n")
+cat("95% CI:", paste(round(auc_ci[1], 4), "to", round(auc_ci[3], 4)), "\n")
+
+# 5) Optimal threshold via Youden's J (sensitivity + specificity - 1)
+best <- coords(roc_gold, "best",
+               best.method = "youden",
+               ret = c("threshold", "sensitivity", "specificity", "youden"))
+print(best)
+
+# 6) (Optional) Plot ROC
+plot(roc_gold, main = "ROC: Quantitative predictor (pred) for Gold vs non-Gold")
+
+# 7) (Optional) neatly capture a summary table
+auc_summary <- data.frame(
+  Model = "Quantitative (pred)",
+  AUC = as.numeric(auc_val),
+  CI_lower = as.numeric(auc_ci[1]),
+  CI_upper = as.numeric(auc_ci[3]),
+  Threshold = best["threshold"],
+  Sensitivity = best["sensitivity"],
+  Specificity = best["specificity"],
+  Youden_Index = best["youden"]
+)
+print(auc_summary)
 
 
+```
+
+# new use this AUC DONOR QUANT
+```{r}
+# Load libraries
+library(readr)
+library(dplyr)
+library(pROC)
+
+# Load the data (use the path where your CSV is located)
+donor_dat <- read_csv("donorquant4.csv")
+
+# Clean data: keep complete cases
+donor_dat_clean <- donor_dat %>%
+  filter(!is.na(pred), !is.na(Colour))
+
+# Create binary trait: Gold = 1, else = 0
+donor_dat_clean <- donor_dat_clean %>%
+  mutate(Gold = ifelse(grepl("^Gold", Colour, ignore.case = TRUE), 1, 0))
+
+# Calculate ROC and AUC
+roc_gold <- roc(donor_dat_clean$Gold, donor_dat_clean$pred)
+print(roc_gold)
+auc(roc_gold)
+
+# Optional: Plot ROC curve
+plot(roc_gold, main = "ROC Curve for Gold vs Non-Gold (Quantitative Model)")
+
+
+```
 
 
 
