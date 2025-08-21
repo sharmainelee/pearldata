@@ -6603,6 +6603,35 @@ head(BLUP)
 
 ```
 
+```{r}
+# Load AUC calculation library
+library(pROC)
+
+# Ensure BLUP$donor_id and donor_dat_clean$donor_id are both characters for merging
+BLUP$donor_id <- as.character(BLUP$donor_id)
+donor_dat_clean$donor_id <- as.character(donor_dat_clean$donor_id)
+
+# Merge BLUPs with donor data to get true labels
+merged_auc <- merge(BLUP, donor_dat_clean[, c("donor_id", "Gold")], by = "donor_id")
+
+# Remove duplicates if necessary
+merged_auc <- merged_auc[!duplicated(merged_auc$donor_id), ]
+
+# Calculate ROC and AUC
+roc_blup <- roc(response = merged_auc$Gold, predictor = merged_auc$solution)
+auc_value <- auc(roc_blup)
+
+# Print results
+print(roc_blup)
+cat("AUC for binary model (BLUPs as predictor):", auc_value, "\n")
+
+# Optional: Plot ROC curve
+plot(roc_blup, main = "ROC Curve: Binary Model (BLUPs for Gold Classification)")
+
+```
+
+
+
 #0.216018437
 
 ```{r}
@@ -6741,5 +6770,302 @@ results = cbind(thresholds, f1_scores, accuracies, misclasses)
 ```
 
 
+#21 aug
 
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant4 %>%
+  filter(!is.na(donor_offspring_id) & 
+         !is.na(donor_dam) & 
+         !is.na(donor_sire) & 
+         !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_offspring_id = as.factor(donor_offspring_id),
+    donor_dam = as.factor(donor_dam),
+    donor_sire = as.factor(donor_sire),
+    Matched_Donor_Data_Nacre_lip_colour_Round = as.factor(Matched_Donor_Data_Nacre_lip_colour_Round),
+    Matched_Donor_Data_Nacre_lip_colour_Flat  = as.factor(Matched_Donor_Data_Nacre_lip_colour_Flat)
+  )
+
+# Drop unused factor levels
+donor_dat <- droplevels(donor_dat)
+
+# Filter complete cases including new fixed effects
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(
+    pred,
+    donor_offspring_id,
+    Matched_Donor_Data_Nacre_lip_colour_Round,
+    Matched_Donor_Data_Nacre_lip_colour_Flat
+  ))
+
+# Add units column (required by ASReml)
+donor_dat_clean$units <- 1:nrow(donor_dat_clean)
+
+# Prepare pedigree
+ped <- donor_dat_clean %>%
+  distinct(donor_offspring_id, .keep_all = TRUE) %>%
+  select(ID = donor_offspring_id, SIRE = donor_sire, DAM = donor_dam)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Fit ASReml Gaussian animal model with the two fixed effects
+mod_gold <- asreml(
+  fixed = pred ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_offspring_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components
+vc <- summary(mod_gold)$varcomp
+print(vc)
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Calculate heritability
+vpredict(mod_gold, h2 ~ V1 / (V1 + V2))
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>%
+  filter(donor %in% unique(donor_dat_clean$donor_offspring_id)) %>%
+  rename(EBV = solution)
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+```
+
+
+
+#DONOR 
+GOLD BINARY MODEL #with fixed effects
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+# 4. shell metrics and factors
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+```{r}
+quant_blups <- blup_gold %>%
+  select(donor_id = donor, pred = EBV)
+
+# Merge gold trait
+quant_gold <- donor_dat_clean %>%
+  mutate(Gold = ifelse(grepl("^Gold", Colour, ignore.case = TRUE), 1, 0)) %>%
+  select(donor_offspring_id, Gold) %>%
+  distinct()
+
+quant_model_data <- inner_join(quant_blups, quant_gold, by = c("donor_id" = "donor_offspring_id"))
+
+```
+
+
+
+```{r}
+bin_blups <- BLUP %>%
+  select(donor_id, solution)
+
+# Get binary gold classification
+bin_gold <- donor_dat_clean %>%
+  mutate(Gold = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)) %>%
+  select(donor_id, Gold) %>%
+  distinct()
+
+bin_model_data <- inner_join(bin_blups, bin_gold, by = "donor_id")
+
+```
+
+
+
+```{r}
+merged_auc <- inner_join(
+  quant_model_data,
+  bin_model_data,
+  by = c("donor_id", "Gold"),
+  suffix = c("_quant", "_bin")
+)
+
+```
+
+```{r}
+library(pROC)
+
+# Quantitative model AUC
+roc_quant <- roc(merged_auc$Gold, merged_auc$pred)
+auc_quant <- auc(roc_quant)
+
+# Binary model AUC
+roc_bin <- roc(merged_auc$Gold, merged_auc$solution)
+auc_bin <- auc(roc_bin)
+
+# Compare
+roc.test(roc_quant, roc_bin, method = "delong")
+
+```
+
+
+
+```{r}
+data.frame(
+  Model = c("Quantitative", "Binary"),
+  AUC = c(auc_quant, auc_bin),
+  n_gold = sum(merged_auc$Gold == 1),
+  n_nongold = sum(merged_auc$Gold == 0)
+)
+
+```
+
+
+
+```{r}
+
+```
 
