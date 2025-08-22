@@ -1,0 +1,4069 @@
+---
+title: "everything5"
+output: html_document
+date: "2025-08-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 1. Proportion
+
+#startswith include gold overtone e.g gold silver, gold white
+
+```{r}
+dat <- PearlOperationalData
+
+# Convert Colour to character (avoids factor issues)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove oysters with no pearls (missing or blank)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary Gold variable
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+
+# Convert Saibo donor ID to factor
+dat$First_Op_Data_Saibo_No <- as.factor(dat$First_Op_Data_Saibo_No)
+
+# Fit logistic regression
+model <- glm(Gold ~ First_Op_Data_Saibo_No, data = dat, family = binomial)
+summary(model)
+
+```
+
+
+#gold + gold overtones
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculate proportion of gold pearls per donor
+prop_data <- dat %>%
+  group_by(First_Op_Data_Saibo_No) %>%
+  summarise(
+    n = n(),
+    gold_rate = mean(Gold)
+  )
+
+# Bar plot
+p_gold <- ggplot(prop_data, aes(x = First_Op_Data_Saibo_No, y = gold_rate)) +
+  geom_col(fill = "goldenrod") +
+  labs(
+    x = "Saibo Donor ID",
+    y = "Proportion of Gold Pearls",
+    title = "Proportion of Gold Pearls by Saibo Donor"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_gold
+
+```
+
+
+###silver + overtones silver gold, silver pink, silver white
+
+```{r}
+dat <- PearlOperationalData
+
+# Convert Colour to character (avoids factor issues)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove oysters with no pearls (missing or blank)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary Gold variable
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+
+# Convert Saibo donor ID to factor
+dat$First_Op_Data_Saibo_No <- as.factor(dat$First_Op_Data_Saibo_No)
+
+# Fit logistic regression
+model <- glm(Silver ~ First_Op_Data_Saibo_No, data = dat, family = binomial)
+summary(model)
+
+```
+
+
+#silver + overtones
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculate proportion of gold pearls per donor
+prop_data <- dat %>%
+  group_by(First_Op_Data_Saibo_No) %>%
+  summarise(
+    n = n(),
+    silver_rate = mean(Silver)
+  )
+
+# Bar plot
+p_silver <- ggplot(prop_data, aes(x = First_Op_Data_Saibo_No, y = silver_rate)) +
+  geom_col(fill = "#c0c0c0") +
+  labs(
+    x = "Saibo Donor ID",
+    y = "Proportion of Silver Pearls",
+    title = "Proportion of Silver Pearls by Saibo Donor"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_silver
+
+```
+
+
+
+# white + overtones white cream, white gold, white pink, white silver
+
+```{r}
+dat <- PearlOperationalData
+
+# Convert Colour to character (avoids factor issues)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove oysters with no pearls (missing or blank)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary Gold variable
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+
+# Convert Saibo donor ID to factor
+dat$First_Op_Data_Saibo_No <- as.factor(dat$First_Op_Data_Saibo_No)
+
+# Fit logistic regression
+model <- glm(White ~ First_Op_Data_Saibo_No, data = dat, family = binomial)
+summary(model)
+
+```
+
+#white + overtones
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculate proportion of gold pearls per donor
+prop_data <- dat %>%
+  group_by(First_Op_Data_Saibo_No) %>%
+  summarise(
+    n = n(),
+    white_rate = mean(White)
+  )
+
+# Bar plot
+p_white <- ggplot(prop_data, aes(x = First_Op_Data_Saibo_No, y = white_rate)) +
+  geom_col(fill = "#E3DAC9") +
+  labs(
+    x = "Saibo Donor ID",
+    y = "Proportion of White Pearls",
+    title = "Proportion of White Pearls by Saibo Donor"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_white
+
+```
+
+
+
+# cream 
+
+```{r}
+dat <- PearlOperationalData
+
+# Convert Colour to character (avoids factor issues)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove oysters with no pearls (missing or blank)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary Gold variable
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+
+# Convert Saibo donor ID to factor
+dat$First_Op_Data_Saibo_No <- as.factor(dat$First_Op_Data_Saibo_No)
+
+# Fit logistic regression
+model <- glm(Cream ~ First_Op_Data_Saibo_No, data = dat, family = binomial)
+summary(model)
+
+```
+
+
+#cream 
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculate proportion of cream pearls per donor
+prop_data <- dat %>%
+  group_by(First_Op_Data_Saibo_No) %>%
+  summarise(
+    n = n(),
+    cream_rate = mean(Cream)
+  )
+
+# Bar plot
+p_cream <- ggplot(prop_data, aes(x = First_Op_Data_Saibo_No, y = cream_rate)) +
+  geom_col(fill = "#FFFDD0") +
+  labs(
+    x = "Saibo Donor ID",
+    y = "Proportion of Cream Pearls",
+    title = "Proportion of Cream Pearls by Saibo Donor"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_cream
+
+```
+
+
+
+# champagne
+
+```{r}
+dat <- PearlOperationalData
+
+# Convert Colour to character (avoids factor issues)
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove oysters with no pearls (missing or blank)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary Gold variable
+dat$Champ <- ifelse(grepl("Champ",dat$Pearl_Grading_Data_Colour), 1, 0)
+
+# Convert Saibo donor ID to factor
+dat$First_Op_Data_Saibo_No <- as.factor(dat$First_Op_Data_Saibo_No)
+
+# Fit logistic regression
+model <- glm(Champ ~ First_Op_Data_Saibo_No, data = dat, family = binomial)
+summary(model)
+
+```
+
+
+#champagne and light champ
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculate proportion of champ pearls per donor
+prop_data <- dat %>%
+  group_by(First_Op_Data_Saibo_No) %>%
+  summarise(
+    n = n(),
+    champ_rate = mean(Champ)
+  )
+
+# Bar plot
+p_champ <- ggplot(prop_data, aes(x = First_Op_Data_Saibo_No, y = champ_rate)) +
+  geom_col(fill = "#F7E7CE") +
+  labs(
+    x = "Saibo Donor ID",
+    y = "Proportion of Champagne Pearls",
+    title = "Proportion of Champagne Pearls by Saibo Donor"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_champ
+
+```
+
+#stacked plot
+
+```{r}
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(scales)
+
+# Start with your dataset
+dat <- PearlOperationalData
+
+# Clean and classify base colours (includes overtones)
+dat <- dat %>%
+  filter(!is.na(Pearl_Grading_Data_Colour),
+         Pearl_Grading_Data_Colour != "") %>%
+  mutate(
+    base_colour = case_when(
+      str_detect(Pearl_Grading_Data_Colour, regex("^Gold", ignore_case = TRUE)) ~ "Gold",
+      str_detect(Pearl_Grading_Data_Colour, regex("^Silver", ignore_case = TRUE)) ~ "Silver",
+      str_detect(Pearl_Grading_Data_Colour, regex("^White", ignore_case = TRUE)) ~ "White",
+      str_detect(Pearl_Grading_Data_Colour, regex("^Cream", ignore_case = TRUE)) ~ "Cream",
+      str_detect(Pearl_Grading_Data_Colour, regex("Champ", ignore_case = TRUE)) ~ "Champagne",
+      TRUE ~ NA_character_
+    ),
+    First_Op_Data_Saibo_No = as.factor(First_Op_Data_Saibo_No)
+  ) %>%
+  filter(!is.na(base_colour))
+
+# Ensure legend order
+dat$base_colour <- factor(dat$base_colour,
+                          levels = c("Gold", "Silver", "White", "Cream", "Champagne"))
+
+# Count and calculate proportions per donor
+stack_df <- dat %>%
+  count(First_Op_Data_Saibo_No, base_colour, name = "n") %>%
+  group_by(First_Op_Data_Saibo_No) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup()
+
+# 100% stacked bar plot with custom colours
+ggplot(stack_df, aes(x = First_Op_Data_Saibo_No, y = prop, fill = base_colour)) +
+  geom_col(width = 0.9) +
+  scale_fill_manual(
+    values = c(
+      "Gold" = "#ffd700",
+      "Silver" = "#696969",
+      "White" = "#d3d3d3",
+      "Cream" = "#fffacd",
+      "Champagne" = "#ffa07a"
+    )
+  ) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    x = "Saibo Donor ID",
+    y = "Pearl Colour Composition (%)",
+    fill = "Base colour",
+    title = "Pearl colour composition per Saibo donor (startswith grouping)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+
+```
+
+
+
+# 2. Fixed Effects
+
+#First_Op_Data_DVH_mm
+# gold + overtones
+#not signif
+```{r}
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Gold vs Others
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+
+# Remove rows with missing First_Op_Data_DVH_mm
+dat <- dat[!is.na(dat$First_Op_Data_DVH_mm), ]
+
+# Fit logistic regression: DVH vs Gold
+model <- glm(Gold ~ First_Op_Data_DVH_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+#First_Op_Data_DVH_mm
+#silver + overtones
+#signif intercept// not signif
+```{r}
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Silver vs Others
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+
+# Remove rows with missing First_Op_Data_DVH_mm
+dat <- dat[!is.na(dat$First_Op_Data_DVH_mm), ]
+
+# Fit logistic regression: DVH vs Silver
+model <- glm(Silver ~ First_Op_Data_DVH_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+#First_Op_Data_DVH_mm
+#white + overtones
+#not signif
+
+```{r}
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: White vs Others
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+
+# Remove rows with missing First_Op_Data_DVH_mm
+dat <- dat[!is.na(dat$First_Op_Data_DVH_mm), ]
+
+# Fit logistic regression: DVH vs White
+model <- glm(White ~ First_Op_Data_DVH_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+#First_Op_Data_DVH_mm
+#cream
+#signif
+
+```{r}
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Cream vs Others
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+
+# Remove rows with missing First_Op_Data_DVH_mm
+dat <- dat[!is.na(dat$First_Op_Data_DVH_mm), ]
+
+# Fit logistic regression: DVH vs White
+model <- glm(Cream ~ First_Op_Data_DVH_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+#First_Op_Data_DVH_mm
+#Champagne
+#not signif
+
+```{r}
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Champ vs Others
+dat$Champ <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# Remove rows with missing First_Op_Data_DVH_mm
+dat <- dat[!is.na(dat$First_Op_Data_DVH_mm), ]
+
+# Fit logistic regression: DVH vs White
+model <- glm(Champ ~ First_Op_Data_DVH_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+
+# First_Op_Data_APW_mm
+#gold + overtones
+#not signif
+```{r}
+
+# Load dataset
+dat <- PearlOperationalData
+
+# Convert Colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove missing/blank colour values
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary variable for Gold pearls
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+
+# Remove rows with missing APW values
+dat <- dat[!is.na(dat$First_Op_Data_APW_mm), ]
+
+# Fit logistic regression model
+model <- glm(Gold ~ First_Op_Data_APW_mm, data = dat, family = binomial)
+
+# Show model summary
+summary(model)
+
+
+
+```
+
+
+
+# First_Op_Data_APW_mm
+#silver + overtones
+#signif intercept // not signif
+```{r}
+
+# Load dataset
+dat <- PearlOperationalData
+
+# Convert Colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove missing/blank colour values
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary variable for Silver pearls
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+
+# Remove rows with missing APW values
+dat <- dat[!is.na(dat$First_Op_Data_APW_mm), ]
+
+# Fit logistic regression model
+model <- glm(Silver ~ First_Op_Data_APW_mm, data = dat, family = binomial)
+
+# Show model summary
+summary(model)
+
+
+
+```
+
+# First_Op_Data_APW_mm
+#white + overtones
+#not signif
+```{r}
+
+# Load dataset
+dat <- PearlOperationalData
+
+# Convert Colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove missing/blank colour values
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary variable for White pearls
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+
+# Remove rows with missing APW values
+dat <- dat[!is.na(dat$First_Op_Data_APW_mm), ]
+
+# Fit logistic regression model
+model <- glm(White ~ First_Op_Data_APW_mm, data = dat, family = binomial)
+
+# Show model summary
+summary(model)
+
+
+
+```
+
+# First_Op_Data_APW_mm
+#cream
+#not signif
+```{r}
+
+# Load dataset
+dat <- PearlOperationalData
+
+# Convert Colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove missing/blank colour values
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary variable for Cream pearls
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+
+# Remove rows with missing APW values
+dat <- dat[!is.na(dat$First_Op_Data_APW_mm), ]
+
+# Fit logistic regression model
+model <- glm(Cream ~ First_Op_Data_APW_mm, data = dat, family = binomial)
+
+# Show model summary
+summary(model)
+
+
+
+```
+
+# First_Op_Data_APW_mm
+#champ
+# not signif
+```{r}
+
+# Load dataset
+dat <- PearlOperationalData
+
+# Convert Colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Remove missing/blank colour values
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary variable for Champ pearls
+dat$Champ <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# Remove rows with missing APW values
+dat <- dat[!is.na(dat$First_Op_Data_APW_mm), ]
+
+# Fit logistic regression model
+model <- glm(Champ ~ First_Op_Data_APW_mm, data = dat, family = binomial)
+
+# Show model summary
+summary(model)
+
+
+
+```
+
+
+## 
+
+##gold 
+#  First_Op_Data_Shell_Depth_mm
+# not signif
+
+```{r}
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Gold vs Others
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Depth_mm
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Depth_mm), ]
+
+# Fit logistic regression: DVH vs Gold
+model <- glm(Gold ~ First_Op_Data_Shell_Depth_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+#silver 
+#First_Op_Data_Shell_Depth_mm
+#not signif
+
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Silver vs Others
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Depth_mm
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Depth_mm), ]
+
+# Fit logistic regression: DVH vs Silver
+model <- glm(Silver ~ First_Op_Data_Shell_Depth_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+#white
+#First_Op_Data_Shell_Depth_mm
+#not signif
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: White vs Others
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Depth_mm
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Depth_mm), ]
+
+# Fit logistic regression: DVH vs White
+model <- glm(White ~ First_Op_Data_Shell_Depth_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+#cream
+# First_Op_Data_Shell_Depth_mm
+#not signif
+
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Cream vs Others
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Depth_mm
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Depth_mm), ]
+
+# Fit logistic regression: DVH vs Cream
+model <- glm(Cream ~ First_Op_Data_Shell_Depth_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+#champ
+#First_Op_Data_Shell_Depth_mm
+#not signif
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Champ vs Others
+dat$Champ <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Depth_mm
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Depth_mm), ]
+
+# Fit logistic regression: DVH vs Cream
+model <- glm(Champ ~ First_Op_Data_Shell_Depth_mm, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+## statistical test for shell weight vs binary colour 
+
+##gold 
+#First_Op_Data_Shell_Weight_g
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Gold vs Others
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Weight_g
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Weight_g), ]
+
+# Fit logistic regression: shell weight vs Gold
+model <- glm(Gold ~ First_Op_Data_Shell_Weight_g, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+##silver
+#First_Op_Data_Shell_Weight_g
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Silver vs Others
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Weight_g
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Weight_g), ]
+
+# Fit logistic regression: shell weight vs Gold
+model <- glm(Silver ~ First_Op_Data_Shell_Weight_g, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+##white
+#First_Op_Data_Shell_Weight_g
+#not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: White vs Others
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Weight_g
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Weight_g), ]
+
+# Fit logistic regression: shell weight vs Gold
+model <- glm(White ~ First_Op_Data_Shell_Weight_g, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+##cream
+#First_Op_Data_Shell_Weight_g
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Cream vs Others
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Weight_g
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Weight_g), ]
+
+# Fit logistic regression: shell weight vs Cream
+model <- glm(Cream ~ First_Op_Data_Shell_Weight_g, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+##champagne
+#First_Op_Data_Shell_Weight_g
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: Champ vs Others
+dat$Champ <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Shell_Weight_g
+dat <- dat[!is.na(dat$First_Op_Data_Shell_Weight_g), ]
+
+# Fit logistic regression: shell weight vs Cream
+model <- glm(Champ ~ First_Op_Data_Shell_Weight_g, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+
+
+#gold
+#First_Op_Data_Nacre_Lip_Colour_Round
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: gold vs Others
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Nacre_Lip_Colour_Round
+dat <- dat[!is.na(dat$First_Op_Data_Nacre_Lip_Colour_Round), ]
+
+# Fit logistic regression: shell weight vs gold
+model <- glm(Gold ~ First_Op_Data_Nacre_Lip_Colour_Round, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+
+#silver
+#First_Op_Data_Nacre_Lip_Colour_Round
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: silver vs Others
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Nacre_Lip_Colour_Round
+dat <- dat[!is.na(dat$First_Op_Data_Nacre_Lip_Colour_Round), ]
+
+# Fit logistic regression: nacre lip colour host vs Silver
+model <- glm(Silver ~ First_Op_Data_Nacre_Lip_Colour_Round, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+
+
+#white
+#First_Op_Data_Nacre_Lip_Colour_Round
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: silver vs Others
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Nacre_Lip_Colour_Round
+dat <- dat[!is.na(dat$First_Op_Data_Nacre_Lip_Colour_Round), ]
+
+# Fit logistic regression: nacre lip colour host vs Silver
+model <- glm(White ~ First_Op_Data_Nacre_Lip_Colour_Round, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+#cream
+#First_Op_Data_Nacre_Lip_Colour_Round
+#intercept signif// not signif
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: cream vs Others
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Nacre_Lip_Colour_Round
+dat <- dat[!is.na(dat$First_Op_Data_Nacre_Lip_Colour_Round), ]
+
+# Fit logistic regression: nacre lip colour host vs cream
+model <- glm(Cream ~ First_Op_Data_Nacre_Lip_Colour_Round, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+#champ
+#First_Op_Data_Nacre_Lip_Colour_Round
+#intercept signif// not signif
+
+
+```{r}
+
+
+
+# Load your dataset
+dat <- PearlOperationalData
+
+# Convert colour to character
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+
+# Filter out blanks/missing
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+
+# Create binary: champ vs Others
+dat$Champ <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Champ"), 1, 0)
+
+# Remove rows with missing First_Op_Data_Nacre_Lip_Colour_Round
+dat <- dat[!is.na(dat$First_Op_Data_Nacre_Lip_Colour_Round), ]
+
+# Fit logistic regression: nacre lip colour host vs champ
+model <- glm(Champ ~ First_Op_Data_Nacre_Lip_Colour_Round, data = dat, family = binomial)
+
+# Summary of model
+summary(model)
+
+```
+
+#gold, silver, white, cream, champ
+#First_Op_Data_Nacre_Lip_Colour_Flat
+#intercept signif// not signif for all
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Load and clean data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$First_Op_Data_Nacre_Lip_Colour_Flat), ]
+
+# Convert to factor
+dat$First_Op_Data_Nacre_Lip_Colour_Flat <- factor(dat$First_Op_Data_Nacre_Lip_Colour_Flat)
+
+# Create binary columns for each pearl colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+# Fit logistic models
+mod_gold <- glm(Gold ~ First_Op_Data_Nacre_Lip_Colour_Flat, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ First_Op_Data_Nacre_Lip_Colour_Flat, data = dat, family = binomial)
+mod_white <- glm(White ~ First_Op_Data_Nacre_Lip_Colour_Flat, data = dat, family = binomial)
+mod_cream <- glm(Cream ~ First_Op_Data_Nacre_Lip_Colour_Flat, data = dat, family = binomial)
+mod_champ <- glm(Champ ~ First_Op_Data_Nacre_Lip_Colour_Flat, data = dat, family = binomial)
+
+# GLM statistical tests
+summary(mod_gold)   # Test: Does lip colour predict Gold pearl?
+summary(mod_silver) # Test: Does lip colour predict Silver pearl?
+summary(mod_white)  # Test: Does lip colour predict White pearl?
+summary(mod_cream)  # Test: Does lip colour predict Cream pearl?
+summary(mod_champ)  # Test: Does lip colour predict Champ pearl?
+
+```
+
+
+#gold, silver, white, cream, champ
+#First_Op_Data_Nuclei_Size_mm
+#some intercept signif// silver and cream signif
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Load and clean data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$First_Op_Data_Nuclei_Size_mm), ]
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+# Fit logistic regression models
+mod_gold <- glm(Gold ~ First_Op_Data_Nuclei_Size_mm, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ First_Op_Data_Nuclei_Size_mm, data = dat, family = binomial)
+mod_white <- glm(White ~ First_Op_Data_Nuclei_Size_mm, data = dat, family = binomial)
+mod_cream <- glm(Cream ~ First_Op_Data_Nuclei_Size_mm, data = dat, family = binomial)
+mod_champ <- glm(Champ ~ First_Op_Data_Nuclei_Size_mm, data = dat, family = binomial)
+
+# GLM summaries
+cat("==== Gold ====\n")
+print(summary(mod_gold))       # Tests if nuclei size affects probability of gold pearl
+print(anova(mod_gold, test = "Chisq"))  # Likelihood ratio test
+
+cat("==== Silver ====\n")
+print(summary(mod_silver))
+print(anova(mod_silver, test = "Chisq"))
+
+cat("==== White ====\n")
+print(summary(mod_white))
+print(anova(mod_white, test = "Chisq"))
+
+cat("==== Cream ====\n")
+print(summary(mod_cream))
+print(anova(mod_cream, test = "Chisq"))
+
+cat("==== Champ ====\n")
+print(summary(mod_champ))
+print(anova(mod_champ, test = "Chisq"))
+
+```
+
+
+
+
+#gold, silver, white, cream, champ
+#First_Op_Data_Saibo_Area
+#some intercept signif // silver and white signif
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Load and clean data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$First_Op_Data_Saibo_Area), ]
+dat$First_Op_Data_Saibo_Area <- as.factor(dat$First_Op_Data_Saibo_Area)
+
+# Create binary outcome variables for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+# Fit logistic regression models
+mod_gold <- glm(Gold ~ First_Op_Data_Saibo_Area, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ First_Op_Data_Saibo_Area, data = dat, family = binomial)
+mod_white <- glm(White ~ First_Op_Data_Saibo_Area, data = dat, family = binomial)
+mod_cream <- glm(Cream ~ First_Op_Data_Saibo_Area, data = dat, family = binomial)
+mod_champ <- glm(Champ ~ First_Op_Data_Saibo_Area, data = dat, family = binomial)
+
+summary(glm(Gold ~ First_Op_Data_Saibo_Area, data = dat, family = binomial))
+summary(glm(Silver ~ First_Op_Data_Saibo_Area, data = dat, family = binomial))
+summary(glm(White ~ First_Op_Data_Saibo_Area, data = dat, family = binomial))
+summary(glm(Cream ~ First_Op_Data_Saibo_Area, data = dat, family = binomial))
+summary(glm(Champ ~ First_Op_Data_Saibo_Area, data = dat, family = binomial))
+
+
+
+```
+
+
+
+
+#Pearl_Harvest_Data_Days_of_Pearl_Culture
+#champ signif
+## statistical test
+#Test if the proportion (rate) of a color changes with Days of Pearl Culture (continuous variable)
+#Use logistic regression (generalized linear model, binomial family) for each color:
+
+```{r}
+# Example for Gold pearls: assuming Gold is binary 0/1 per pearl
+glm_gold <- glm(Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture, data = dat, family = binomial)
+summary(glm_gold)
+#This tests whether the odds of a pearl being Gold change with Days of Pearl Culture.
+
+glm_silver <- glm(Silver ~ Pearl_Harvest_Data_Days_of_Pearl_Culture, data = dat, family = binomial)
+summary(glm_silver)
+
+glm_white <- glm(White ~ Pearl_Harvest_Data_Days_of_Pearl_Culture, data = dat, family = binomial)
+summary(glm_white)
+
+glm_cream <- glm(Cream ~ Pearl_Harvest_Data_Days_of_Pearl_Culture, data = dat, family = binomial)
+summary(glm_cream)
+
+glm_champ <- glm(Champ ~ Pearl_Harvest_Data_Days_of_Pearl_Culture, data = dat, family = binomial)
+summary(glm_champ)
+
+
+```
+
+
+#gold, silver, white, cream, champ
+#Pearl_Harvest_Data_DVH_mm
+#some intercept signif// gold and white signif
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Load and prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Pearl_Harvest_Data_DVH_mm), ]
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+
+# Logistic regression models per colour
+mod_gold   <- glm(Gold ~ Pearl_Harvest_Data_DVH_mm, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Pearl_Harvest_Data_DVH_mm, data = dat, family = binomial)
+mod_white  <- glm(White ~ Pearl_Harvest_Data_DVH_mm, data = dat, family = binomial)
+mod_cream  <- glm(Cream ~ Pearl_Harvest_Data_DVH_mm, data = dat, family = binomial)
+mod_champ  <- glm(Champ ~ Pearl_Harvest_Data_DVH_mm, data = dat, family = binomial)
+
+# Display GLM summaries (coefficients, p-values, etc.)
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+
+
+```
+
+
+#gold, silver, white, cream, champ
+#Pearl_Harvest_Data_APW_mm
+#gold signif
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Pearl_Harvest_Data_APW_mm), ]  # Use APW instead of DVH
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+
+# Fit GLMs for each colour vs APW (logistic regression)
+mod_gold   <- glm(Gold ~ Pearl_Harvest_Data_APW_mm, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Pearl_Harvest_Data_APW_mm, data = dat, family = binomial)
+mod_white  <- glm(White ~ Pearl_Harvest_Data_APW_mm, data = dat, family = binomial)
+mod_cream  <- glm(Cream ~ Pearl_Harvest_Data_APW_mm, data = dat, family = binomial)
+mod_champ  <- glm(Champ ~ Pearl_Harvest_Data_APW_mm, data = dat, family = binomial)
+
+# Show GLM summaries (coefficients, p-values, etc.)
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+
+
+```
+
+
+#gold, silver, white, cream, champ
+#Pearl_Harvest_Data_Shell_Depth_mm
+#some intercept signif// not signif for all
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Pearl_Harvest_Data_Shell_Depth_mm), ]  # Use Shell Depth
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+# Logistic regression models
+mod_gold   <- glm(Gold ~ Pearl_Harvest_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Pearl_Harvest_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_white  <- glm(White ~ Pearl_Harvest_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_cream  <- glm(Cream ~ Pearl_Harvest_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_champ  <- glm(Champ ~ Pearl_Harvest_Data_Shell_Depth_mm, data = dat, family = binomial)
+
+# View model summaries
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+```
+
+
+
+#gold, silver, white, cream, champ
+#Pearl_Harvest_Data_Shell_Weight_g
+# some intercept signif// gold and white signif
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Pearl_Harvest_Data_Shell_Weight_g), ]  # Use Shell Weight
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+# Fit logistic regression models
+mod_gold <- glm(Gold ~ Pearl_Harvest_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Pearl_Harvest_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_white <- glm(White ~ Pearl_Harvest_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_cream <- glm(Cream ~ Pearl_Harvest_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_champ <- glm(Champ ~ Pearl_Harvest_Data_Shell_Weight_g, data = dat, family = binomial)
+
+# Get summaries of each model (includes p-values)
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+
+```
+
+
+##donor
+# gold, silver, white, cream, champ
+# Matched_Donor_Data_DVH_mm
+# some intercept signif // cream signif
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Matched_Donor_Data_DVH_mm), ]  # Use Donor DVH
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+
+# Fit logistic regression models
+mod_gold <- glm(Gold ~ Matched_Donor_Data_DVH_mm, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Matched_Donor_Data_DVH_mm, data = dat, family = binomial)
+mod_white <- glm(White ~ Matched_Donor_Data_DVH_mm, data = dat, family = binomial)
+mod_cream <- glm(Cream ~ Matched_Donor_Data_DVH_mm, data = dat, family = binomial)
+mod_champ <- glm(Champ ~ Matched_Donor_Data_DVH_mm, data = dat, family = binomial)
+
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+
+```
+
+
+
+#gold, silver, white, cream, champ
+#Matched_Donor_Data_APW_mm
+#some intercept signif// not signif for all
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Matched_Donor_Data_APW_mm), ]  # Use Donor APW
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+# Fit GLMs
+mod_gold   <- glm(Gold ~ Matched_Donor_Data_APW_mm, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Matched_Donor_Data_APW_mm, data = dat, family = binomial)
+mod_white  <- glm(White ~ Matched_Donor_Data_APW_mm, data = dat, family = binomial)
+mod_cream  <- glm(Cream ~ Matched_Donor_Data_APW_mm, data = dat, family = binomial)
+mod_champ  <- glm(Champ ~ Matched_Donor_Data_APW_mm, data = dat, family = binomial)
+
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+```
+
+
+#gold, silver, white, cream, champ
+#Matched_Donor_Data_Shell_Depth_mm
+#some intercept signif// not signif for all
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Matched_Donor_Data_Shell_Depth_mm), ]  # Use Donor Shell Depth
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+
+# Fit logistic models for each colour
+mod_gold   <- glm(Gold ~ Matched_Donor_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Matched_Donor_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_white  <- glm(White ~ Matched_Donor_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_cream  <- glm(Cream ~ Matched_Donor_Data_Shell_Depth_mm, data = dat, family = binomial)
+mod_champ  <- glm(Champ ~ Matched_Donor_Data_Shell_Depth_mm, data = dat, family = binomial)
+
+
+
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+```
+
+
+
+#gold, silver, white, cream, champ
+#Matched_Donor_Data_Shell_Weight_g
+#some intercept signif// cream signif
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Prepare data
+dat <- PearlOperationalData
+dat$Pearl_Grading_Data_Colour <- as.character(dat$Pearl_Grading_Data_Colour)
+dat <- dat[!is.na(dat$Pearl_Grading_Data_Colour) & dat$Pearl_Grading_Data_Colour != "", ]
+dat <- dat[!is.na(dat$Matched_Donor_Data_Shell_Weight_g), ]  # Use Donor Shell Weight
+
+# Create binary columns for each colour
+dat$Gold <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Gold"), 1, 0)
+dat$Silver <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Silver"), 1, 0)
+dat$White <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "White"), 1, 0)
+dat$Cream <- ifelse(startsWith(dat$Pearl_Grading_Data_Colour, "Cream"), 1, 0)
+dat$Champ <- ifelse(grepl("Champ", dat$Pearl_Grading_Data_Colour), 1, 0)
+
+
+# Fit logistic regression models
+mod_gold   <- glm(Gold   ~ Matched_Donor_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Matched_Donor_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_white  <- glm(White  ~ Matched_Donor_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_cream  <- glm(Cream  ~ Matched_Donor_Data_Shell_Weight_g, data = dat, family = binomial)
+mod_champ  <- glm(Champ  ~ Matched_Donor_Data_Shell_Weight_g, data = dat, family = binomial)
+
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+
+```
+
+
+
+
+#gold, silver, white, cream, champ
+#Matched_Donor_Data_Nacre_lip_colour_Round
+#those with Gr (green) is usually gold, cream // gold, white, cream, champ signif
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Load and clean data
+dat <- PearlOperationalData
+
+# Keep only rows with valid colour and lip colour
+dat <- dat %>%
+  filter(
+    !is.na(Pearl_Grading_Data_Colour),
+    Pearl_Grading_Data_Colour != "",
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    Matched_Donor_Data_Nacre_lip_colour_Round != ""
+  )
+
+# Merge rare lip colour levels into "Other"
+dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.character(dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+dat$Matched_Donor_Data_Nacre_lip_colour_Round <- ifelse(
+  dat$Matched_Donor_Data_Nacre_lip_colour_Round %in% c("WY", "LGr"),
+  "Other",
+  dat$Matched_Donor_Data_Nacre_lip_colour_Round
+)
+
+# Convert to factor and set reference level to "S"
+dat$Matched_Donor_Data_Nacre_lip_colour_Round <- factor(dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+if ("S" %in% levels(dat$Matched_Donor_Data_Nacre_lip_colour_Round)) {
+  dat$Matched_Donor_Data_Nacre_lip_colour_Round <- relevel(dat$Matched_Donor_Data_Nacre_lip_colour_Round, ref = "S")
+}
+
+# View updated distribution of lip colours
+print(table(dat$Matched_Donor_Data_Nacre_lip_colour_Round))
+
+# Create binary outcome variables for each colour (case-insensitive)
+is_start <- function(x, prefix) grepl(paste0("^", prefix), x, ignore.case = TRUE)
+dat$Gold   <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "Gold"))
+dat$Silver <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "Silver"))
+dat$White  <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "White"))
+dat$Cream  <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "Cream"))
+dat$Champ  <- as.integer(grepl("Champ", dat$Pearl_Grading_Data_Colour, ignore.case = TRUE))
+
+# Fit logistic regression models
+mod_gold   <- glm(Gold   ~ Matched_Donor_Data_Nacre_lip_colour_Round, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Matched_Donor_Data_Nacre_lip_colour_Round, data = dat, family = binomial)
+mod_white  <- glm(White  ~ Matched_Donor_Data_Nacre_lip_colour_Round, data = dat, family = binomial)
+mod_cream  <- glm(Cream  ~ Matched_Donor_Data_Nacre_lip_colour_Round, data = dat, family = binomial)
+mod_champ  <- glm(Champ  ~ Matched_Donor_Data_Nacre_lip_colour_Round, data = dat, family = binomial)
+
+# Summarise models
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+```
+
+
+
+
+#gold, silver, white, cream, champ
+#Matched_Donor_Data_Nacre_lip_colour_Flat
+#some intercepts are signif// gold, white, cream, champ signif; Silver and White do not have Gr
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Load and clean data
+dat <- PearlOperationalData
+
+# Keep only rows with valid pearl colour and flat lip colour
+dat <- dat %>%
+  filter(
+    !is.na(Pearl_Grading_Data_Colour),
+    Pearl_Grading_Data_Colour != "",
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    Matched_Donor_Data_Nacre_lip_colour_Flat != ""
+  )
+
+# Merge rare flat lip colour levels into "Other"
+dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.character(dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- ifelse(
+  dat$Matched_Donor_Data_Nacre_lip_colour_Flat %in% c("WY", "LGr"),
+  "Other",
+  dat$Matched_Donor_Data_Nacre_lip_colour_Flat
+)
+
+# Convert to factor and set reference level to "S"
+dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- factor(dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+if ("S" %in% levels(dat$Matched_Donor_Data_Nacre_lip_colour_Flat)) {
+  dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- relevel(dat$Matched_Donor_Data_Nacre_lip_colour_Flat, ref = "S")
+}
+
+# View updated distribution of lip colours
+print(table(dat$Matched_Donor_Data_Nacre_lip_colour_Flat))
+
+# Create binary outcome variables for each colour (case-insensitive)
+is_start <- function(x, prefix) grepl(paste0("^", prefix), x, ignore.case = TRUE)
+dat$Gold   <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "Gold"))
+dat$Silver <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "Silver"))
+dat$White  <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "White"))
+dat$Cream  <- as.integer(is_start(dat$Pearl_Grading_Data_Colour, "Cream"))
+dat$Champ  <- as.integer(grepl("Champ", dat$Pearl_Grading_Data_Colour, ignore.case = TRUE))
+
+# Fit logistic regression models
+mod_gold   <- glm(Gold   ~ Matched_Donor_Data_Nacre_lip_colour_Flat, data = dat, family = binomial)
+mod_silver <- glm(Silver ~ Matched_Donor_Data_Nacre_lip_colour_Flat, data = dat, family = binomial)
+mod_white  <- glm(White  ~ Matched_Donor_Data_Nacre_lip_colour_Flat, data = dat, family = binomial)
+mod_cream  <- glm(Cream  ~ Matched_Donor_Data_Nacre_lip_colour_Flat, data = dat, family = binomial)
+mod_champ  <- glm(Champ  ~ Matched_Donor_Data_Nacre_lip_colour_Flat, data = dat, family = binomial)
+
+# Summarise models
+summary(mod_gold)
+summary(mod_silver)
+summary(mod_white)
+summary(mod_cream)
+summary(mod_champ)
+
+```
+
+
+
+# 3. Traditional Model (Binary)
+
+## TRADITIONAL HERITABILITY ESTIMATES AND ESTIMATED BREEDING VALUES
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load and prepare data
+host_dat <- read_csv("host_id2.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(grepl("^Gold", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Silver <- ifelse(grepl("^Silver", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$White  <- ifelse(grepl("^White", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Cream  <- ifelse(grepl("^Cream", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Champ  <- ifelse(grepl("^Champ", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 3. Rename and format ID columns as factors
+host_dat <- host_dat %>%
+  rename(
+    host_id = Shell_Metrics_GenotypeID_DART,
+    Dam = host_Dam,
+    Sire = host_Sire
+  ) %>%
+  mutate(
+    host_id = as.factor(host_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 4. shell metrics and factors
+host_dat$First_Op_Data_DVH_mm <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+host_dat$First_Op_Data_Saibo_Area <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_DVH_mm <- as.numeric(host_dat$Matched_Donor_Data_DVH_mm)
+host_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(host_dat$Matched_Donor_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree
+pedind <- host_dat_clean %>%
+  select(ID = host_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit ASReml binary model for Gold
+mod.ind <- asreml(
+  fixed = Gold ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area
+ + Pearl_Harvest_Data_Days_of_Pearl_Culture + Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g + Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g + Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+#vpredict(mod.ind, h2 ~ V1 / (V1 + (pi^2 / 3)))
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+SE_Va <- vc["vm(host_id, ainv)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic residual variance
+
+# Latent scale heritability
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale heritability
+p <- mean(host_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Heritability summary
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+# BINARY MODEL SILVER
+# TESTING THE SAME FIXED EFFECTS IN THE MODEL 
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load and prepare data
+host_dat <- read_csv("host_id2.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(grepl("^Gold", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Silver <- ifelse(grepl("^Silver", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$White  <- ifelse(grepl("^White", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Cream  <- ifelse(grepl("^Cream", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Champ  <- ifelse(grepl("^Champ", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 3. Rename and format ID columns as factors
+host_dat <- host_dat %>%
+  rename(
+    host_id = Shell_Metrics_GenotypeID_DART,
+    Dam = host_Dam,
+    Sire = host_Sire
+  ) %>%
+  mutate(
+    host_id = as.factor(host_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 4. shell metrics and factors
+host_dat$First_Op_Data_DVH_mm <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+host_dat$First_Op_Data_Saibo_Area <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_DVH_mm <- as.numeric(host_dat$Matched_Donor_Data_DVH_mm)
+host_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(host_dat$Matched_Donor_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree
+pedind <- host_dat_clean %>%
+  select(ID = host_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit ASReml binary model for Gold
+mod.ind <- asreml(
+  fixed = Silver ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area
+ + Pearl_Harvest_Data_Days_of_Pearl_Culture + Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g + Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g + Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+#vpredict(mod.ind, h2 ~ V1 / (V1 + (pi^2 / 3)))
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+SE_Va <- vc["vm(host_id, ainv)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic residual variance
+
+# Latent scale heritability
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale heritability
+p <- mean(host_dat_clean$Silver)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Heritability summary
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+
+
+# BINARY MODEL WHITE
+# TESTING THE SAME FIXED EFFECTS IN THE MODEL 
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load and prepare data
+host_dat <- read_csv("host_id2.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(grepl("^Gold", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Silver <- ifelse(grepl("^Silver", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$White  <- ifelse(grepl("^White", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Cream  <- ifelse(grepl("^Cream", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Champ  <- ifelse(grepl("^Champ", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 3. Rename and format ID columns as factors
+host_dat <- host_dat %>%
+  rename(
+    host_id = Shell_Metrics_GenotypeID_DART,
+    Dam = host_Dam,
+    Sire = host_Sire
+  ) %>%
+  mutate(
+    host_id = as.factor(host_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 4. shell metrics and factors
+host_dat$First_Op_Data_DVH_mm <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+host_dat$First_Op_Data_Saibo_Area <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_DVH_mm <- as.numeric(host_dat$Matched_Donor_Data_DVH_mm)
+host_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(host_dat$Matched_Donor_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree
+pedind <- host_dat_clean %>%
+  select(ID = host_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit ASReml binary model for Gold
+mod.ind <- asreml(
+  fixed = White ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area
+ + Pearl_Harvest_Data_Days_of_Pearl_Culture + Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g + Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g + Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+#vpredict(mod.ind, h2 ~ V1 / (V1 + (pi^2 / 3)))
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+SE_Va <- vc["vm(host_id, ainv)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic residual variance
+
+# Latent scale heritability
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale heritability
+p <- mean(host_dat_clean$White)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Heritability summary
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+# BINARY MODEL CREAM
+# TESTING THE SAME FIXED EFFECTS IN THE MODEL 
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load and prepare data
+host_dat <- read_csv("host_id2.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(grepl("^Gold", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Silver <- ifelse(grepl("^Silver", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$White  <- ifelse(grepl("^White", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Cream  <- ifelse(grepl("^Cream", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Champ  <- ifelse(grepl("^Champ", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 3. Rename and format ID columns as factors
+host_dat <- host_dat %>%
+  rename(
+    host_id = Shell_Metrics_GenotypeID_DART,
+    Dam = host_Dam,
+    Sire = host_Sire
+  ) %>%
+  mutate(
+    host_id = as.factor(host_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 4. shell metrics and factors
+host_dat$First_Op_Data_DVH_mm <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+host_dat$First_Op_Data_Saibo_Area <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_DVH_mm <- as.numeric(host_dat$Matched_Donor_Data_DVH_mm)
+host_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(host_dat$Matched_Donor_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree
+pedind <- host_dat_clean %>%
+  select(ID = host_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit ASReml binary model for Gold
+mod.ind <- asreml(
+  fixed = Cream ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area
+ + Pearl_Harvest_Data_Days_of_Pearl_Culture + Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g + Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g + Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+#vpredict(mod.ind, h2 ~ V1 / (V1 + (pi^2 / 3)))
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+SE_Va <- vc["vm(host_id, ainv)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic residual variance
+
+# Latent scale heritability
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale heritability
+p <- mean(host_dat_clean$Cream)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Heritability summary
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+# BINARY MODEL CHAMPAGNE
+# TESTING THE SAME FIXED EFFECTS IN THE MODEL 
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load and prepare data
+host_dat <- read_csv("host_id2.csv")
+
+# 2. Create binary colour traits
+host_dat$Gold   <- ifelse(grepl("^Gold", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Silver <- ifelse(grepl("^Silver", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$White  <- ifelse(grepl("^White", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Cream  <- ifelse(grepl("^Cream", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+host_dat$Champ  <- ifelse(grepl("^Champ", host_dat$Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+
+# 3. Rename and format ID columns as factors
+host_dat <- host_dat %>%
+  rename(
+    host_id = Shell_Metrics_GenotypeID_DART,
+    Dam = host_Dam,
+    Sire = host_Sire
+  ) %>%
+  mutate(
+    host_id = as.factor(host_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 4. shell metrics and factors
+host_dat$First_Op_Data_DVH_mm <- as.numeric(host_dat$First_Op_Data_DVH_mm)
+host_dat$First_Op_Data_Nuclei_Size_mm <- as.numeric(host_dat$First_Op_Data_Nuclei_Size_mm)
+host_dat$First_Op_Data_Saibo_Area <- as.factor(host_dat$First_Op_Data_Saibo_Area)
+host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.factor(host_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+host_dat$Pearl_Harvest_Data_DVH_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_DVH_mm)
+host_dat$Pearl_Harvest_Data_APW_mm         <- as.numeric(host_dat$Pearl_Harvest_Data_APW_mm)
+host_dat$Pearl_Harvest_Data_Shell_Weight_g <- as.numeric(host_dat$Pearl_Harvest_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_DVH_mm <- as.numeric(host_dat$Matched_Donor_Data_DVH_mm)
+host_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(host_dat$Matched_Donor_Data_Shell_Weight_g)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(host_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(First_Op_Data_DVH_mm),
+    !is.na(First_Op_Data_Nuclei_Size_mm),
+    !is.na(First_Op_Data_Saibo_Area),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(Pearl_Harvest_Data_DVH_mm),
+    !is.na(Pearl_Harvest_Data_APW_mm),
+    !is.na(Pearl_Harvest_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(host_id)
+  )
+
+# 6. Create pedigree
+pedind <- host_dat_clean %>%
+  select(ID = host_id, SIRE = Sire, DAM = Dam) %>%
+  mutate(across(everything(), as.factor))
+
+ainv <- ainverse(pedind)
+
+# 7. Fit ASReml binary model for Gold
+mod.ind <- asreml(
+  fixed = Champ ~ First_Op_Data_DVH_mm + First_Op_Data_Nuclei_Size_mm + First_Op_Data_Saibo_Area
+ + Pearl_Harvest_Data_Days_of_Pearl_Culture + Pearl_Harvest_Data_DVH_mm + Pearl_Harvest_Data_APW_mm + Pearl_Harvest_Data_Shell_Weight_g + Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g + Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(host_id, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+#vpredict(mod.ind, h2 ~ V1 / (V1 + (pi^2 / 3)))
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, ainv)", "component"]
+SE_Va <- vc["vm(host_id, ainv)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic residual variance
+
+# Latent scale heritability
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale heritability
+p <- mean(host_dat_clean$Champ)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Heritability summary
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+#DONOR 
+GOLD BINARY MODEL #with fixed effects
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+# 4. shell metrics and factors
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+
+#pearson correlation binary model gold
+
+```{r}
+# Load required library
+library(ggplot2)
+
+# --- Step 1: Rename EBV column and ensure donor_id is a factor ---
+BLUP <- BLUP %>%
+  rename(EBV = solution) %>%
+  mutate(donor_id = as.factor(donor_id))
+
+
+# --- Step 2: Calculate observed proportion of Gold pearls per donor ---
+obs_gold <- donor_dat_clean %>%
+  group_by(donor_id) %>%
+  summarise(
+    prop_gold = mean(Gold, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# --- Step 3: Merge EBVs with observed gold proportion ---
+plot_df <- BLUP %>%
+  inner_join(obs_gold, by = "donor_id") %>%
+  filter(!is.na(EBV), !is.na(prop_gold))
+
+# --- Step 4: Exponential model fit ---
+plot_df <- plot_df %>%
+  mutate(prop_gold_adj = pmax(prop_gold, 1e-6))  # avoid log(0)
+
+# Starting values from log-linear regression
+start_vals <- coef(lm(log(prop_gold_adj) ~ EBV, data = plot_df))
+start_a <- exp(start_vals[1])
+start_b <- start_vals[2]
+
+# Fit exponential model: y = a * exp(b * x)
+exp_model <- nls(prop_gold_adj ~ a * exp(b * EBV),
+                 data = plot_df,
+                 start = list(a = start_a, b = start_b),
+                 control = list(maxiter = 200, warnOnly = TRUE))
+
+# --- Step 5: Generate fitted curve ---
+curve_df <- data.frame(EBV = seq(min(plot_df$EBV), max(plot_df$EBV), length.out = 200))
+curve_df$pred <- predict(exp_model, newdata = curve_df)
+
+# --- Step 6: Plot without point size ---
+ggplot(plot_df, aes(x = EBV, y = prop_gold)) +
+  geom_point(color = "darkgoldenrod", alpha = 0.8) +
+  geom_line(data = curve_df, aes(x = EBV, y = pred), color = "black", linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1), expand = expansion(mult = c(0.02, 0.02))) +
+  labs(
+    x = "Estimated Breeding Value (EBV) for Gold",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Donor EBV vs Observed Gold Proportion",
+    subtitle = "Fitted with exponential model: y = a · exp(b · EBV)"
+  ) +
+  theme_minimal(base_size = 13)
+
+# Optional: print model coefficients
+cat("Fitted exponential model:\n")
+print(coef(exp_model))
+
+cor(plot_df$EBV, plot_df$prop_gold, method = "pearson", use = "complete.obs")
+
+cor.test(plot_df$EBV, plot_df$prop_gold, method = "pearson")
+
+
+
+```
+
+
+
+DONOR BINARY SILVER NO FIXED EFFECTS
+```{r}
+# DONOR 
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- read_csv("donor_data2.csv")
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Silver ~ 1,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Silver, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_silver <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+
+#DONOR 
+WHITE BINARY MODEL # FIXED EFFECTS
+
+```{r}
+# DONOR 
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+# 4. shell metrics and factors
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = White ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$White, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+
+#DONOR 
+CREAM BINARY MODEL # FIXED EFFECTS
+
+```{r}
+# DONOR 
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+# 4. shell metrics and factors
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+donor_dat$Matched_Donor_Data_DVH_mm <- as.numeric(donor_dat$Matched_Donor_Data_DVH_mm)
+donor_dat$Matched_Donor_Data_Shell_Weight_g <- as.numeric(donor_dat$Matched_Donor_Data_Shell_Weight_g)
+
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(Matched_Donor_Data_DVH_mm),
+    !is.na(Matched_Donor_Data_Shell_Weight_g),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Cream ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat + Matched_Donor_Data_DVH_mm + Matched_Donor_Data_Shell_Weight_g,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Cream, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+
+#DONOR 
+CHAMP BINARY MODEL # FIXED EFFECTS
+
+```{r}
+# DONOR 
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+# 4. shell metrics and factors
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Champ ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Champ, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+
+
+
+#vpredict quantitative model host 
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+host_dat <- hostquant %>%
+  filter(!is.na(offspring_id_host) & 
+         !is.na(dam_host) & 
+         !is.na(sire_host) & 
+         !is.na(pred))
+
+# Convert ID columns to factor
+host_dat <- host_dat %>%
+  mutate(
+    offspring_id_host = as.factor(offspring_id_host),
+    dam_host = as.factor(dam_host),
+    sire_host = as.factor(sire_host),
+    
+    # Fixed effects
+    First_Op_Data_DVH_mm = as.numeric(First_Op_Data_DVH_mm),
+    First_Op_Data_Nuclei_Size_mm = as.numeric(First_Op_Data_Nuclei_Size_mm),
+    First_Op_Data_Saibo_Area = as.factor(First_Op_Data_Saibo_Area),
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    Pearl_Harvest_Data_DVH_mm = as.numeric(Pearl_Harvest_Data_DVH_mm),
+    Pearl_Harvest_Data_APW_mm = as.numeric(Pearl_Harvest_Data_APW_mm),
+    Pearl_Harvest_Data_Shell_Weight_g = as.numeric(Pearl_Harvest_Data_Shell_Weight_g),
+    Matched_Donor_Data_DVH_mm = as.numeric(Matched_Donor_Data_DVH_mm),
+    Matched_Donor_Data_Shell_Weight_g = as.numeric(Matched_Donor_Data_Shell_Weight_g),
+    Matched_Donor_Data_Nacre_lip_colour_Round = as.factor(Matched_Donor_Data_Nacre_lip_colour_Round),
+    Matched_Donor_Data_Nacre_lip_colour_Flat  = as.factor(Matched_Donor_Data_Nacre_lip_colour_Flat)
+  )
+
+# Drop unused factor levels
+host_dat <- droplevels(host_dat)
+
+# Filter complete cases for all model variables
+host_dat_clean <- host_dat %>%
+  filter(complete.cases(
+    pred,
+    offspring_id_host,
+    First_Op_Data_DVH_mm,
+    First_Op_Data_Nuclei_Size_mm,
+    First_Op_Data_Saibo_Area,
+    Pearl_Harvest_Data_Days_of_Pearl_Culture,
+    Pearl_Harvest_Data_DVH_mm,
+    Pearl_Harvest_Data_APW_mm,
+    Pearl_Harvest_Data_Shell_Weight_g,
+    Matched_Donor_Data_DVH_mm,
+    Matched_Donor_Data_Shell_Weight_g,
+    Matched_Donor_Data_Nacre_lip_colour_Round,
+    Matched_Donor_Data_Nacre_lip_colour_Flat
+  ))
+
+# Add 'units' column
+host_dat_clean$units <- 1:nrow(host_dat_clean)
+
+# Prepare pedigree (no distinct used)
+ped <- host_dat_clean %>%
+  select(ID = offspring_id_host, SIRE = sire_host, DAM = dam_host)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Fit ASReml Gaussian animal model with fixed effects
+mod_host <- asreml(
+  fixed = pred ~ First_Op_Data_DVH_mm +
+                 First_Op_Data_Nuclei_Size_mm +
+                 First_Op_Data_Saibo_Area +
+                 Pearl_Harvest_Data_Days_of_Pearl_Culture +
+                 Pearl_Harvest_Data_DVH_mm +
+                 Pearl_Harvest_Data_APW_mm +
+                 Pearl_Harvest_Data_Shell_Weight_g +
+                 Matched_Donor_Data_DVH_mm +
+                 Matched_Donor_Data_Shell_Weight_g +
+                 Matched_Donor_Data_Nacre_lip_colour_Round +
+                 Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(offspring_id_host, ainv),
+  residual = ~ idv(units),
+  data = host_dat_clean
+)
+
+# Update model to ensure convergence
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+mod_host <- update(mod_host)
+
+# Extract and print variance components
+vc <- summary(mod_host)$varcomp
+print(vc)
+
+# Heritability (latent, via vpredict)
+vpredict(mod_host, h2 ~ V1 / (V1 + V2))
+
+# Extract BLUPs
+blup_host <- as.data.frame(summary(mod_host, coef = TRUE)$coef.random)
+blup_host$host <- gsub("^.*\\)_", "", rownames(blup_host))
+blup_host <- blup_host %>%
+  filter(host %in% unique(host_dat_clean$offspring_id_host)) %>%
+  mutate(EBV = solution)
+
+# View top 10 BLUPs
+head(blup_host[order(-blup_host$EBV), ], 10)
+
+```
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant %>%
+  filter(!is.na(offspring_id_donor) & 
+         !is.na(dam_donor) & 
+         !is.na(sire_donor) & 
+         !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat <- donor_dat %>%
+  mutate(
+    offspring_id_donor = as.factor(offspring_id_donor),
+    dam_donor = as.factor(dam_donor),
+    sire_donor = as.factor(sire_donor),
+    Matched_Donor_Data_Nacre_lip_colour_Round = as.factor(Matched_Donor_Data_Nacre_lip_colour_Round),
+    Matched_Donor_Data_Nacre_lip_colour_Flat  = as.factor(Matched_Donor_Data_Nacre_lip_colour_Flat)
+  )
+
+# Drop unused factor levels
+donor_dat <- droplevels(donor_dat)
+
+# Filter complete cases including new fixed effects
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(
+    pred,
+    offspring_id_donor,
+    Matched_Donor_Data_Nacre_lip_colour_Round,
+    Matched_Donor_Data_Nacre_lip_colour_Flat
+  ))
+
+# Add units column (required by ASReml)
+donor_dat_clean$units <- 1:nrow(donor_dat_clean)
+
+# Prepare pedigree
+ped <- donor_dat_clean %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Fit ASReml Gaussian animal model with the two fixed effects
+mod_gold <- asreml(
+  fixed = pred ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components
+vc <- summary(mod_gold)$varcomp
+print(vc)
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Calculate heritability
+vpredict(mod_gold, h2 ~ V1 / (V1 + V2))
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>%
+  filter(donor %in% unique(donor_dat_clean$offspring_id_donor)) %>%
+  rename(EBV = solution)
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+```
+
+
+
+# 5. No. of Offspring per Donor Family
+
+#NEW HOST FAMILY DISTRIBUTION WITH COLOUR #with NA
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Step 1: Create family_key and family_number
+pedigree_host <- pedigree_host2 %>%
+  mutate(
+    family_key = paste(sire_host, dam_host, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# Step 2: Create binary colour columns (edit "Champ" to "Champagne" for consistency)
+pedigree_host <- pedigree_host %>%
+  mutate(
+    Gold       = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver     = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White      = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream      = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champagne  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)  # renamed
+  )
+
+# Step 3: Summarise by family_number
+family_summary <- pedigree_host %>%
+  group_by(family_number) %>%
+  summarise(
+    family_size    = n(),
+    Gold_count     = sum(Gold, na.rm = TRUE),
+    Silver_count   = sum(Silver, na.rm = TRUE),
+    White_count    = sum(White, na.rm = TRUE),
+    Cream_count    = sum(Cream, na.rm = TRUE),
+    Champagne_count = sum(Champagne, na.rm = TRUE)
+  ) %>%
+  arrange(desc(family_size))  # Optional sorting
+
+# Step 4: Reshape to long format for ggplot
+family_long <- family_summary %>%
+  pivot_longer(cols = c(Gold_count, Silver_count, White_count, Cream_count, Champagne_count),
+               names_to = "Colour",
+               values_to = "Count") %>%
+  mutate(Colour = gsub("_count", "", Colour))  # Remove "_count" suffix
+
+# Step 5: Define custom colours
+my_colours <- c(
+  Gold = "#FFD700",
+  Silver = "#A9A9A9",
+  White = "#D3D3D3",
+  Cream = "#FFFDD0",
+  Champagne = "#F7E7CE"
+)
+
+# Step 6: Create stacked bar plot
+ggplot(family_long, aes(x = factor(family_number), y = Count, fill = Colour)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "Family Number",
+    y = "Pearl Count",
+    title = "Distribution of Pearl Colours Across Families"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_fill_manual(values = my_colours)
+
+
+
+```
+
+
+#without NA
+
+#GOOD distribution of pearl colours across families host
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Step 1: Create family_key and family_number
+pedigree_host <- pedigree_host2 %>%
+  mutate(
+    family_key = paste(sire_host, dam_host, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# Step 2: Create binary colour columns
+pedigree_host <- pedigree_host %>%
+  mutate(
+    Gold       = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver     = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White      = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream      = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champagne  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Step 3: Summarise by family_number
+family_summary <- pedigree_host %>%
+  group_by(family_number) %>%
+  summarise(
+    family_size     = n(),
+    Gold_count      = sum(Gold, na.rm = TRUE),
+    Silver_count    = sum(Silver, na.rm = TRUE),
+    White_count     = sum(White, na.rm = TRUE),
+    Cream_count     = sum(Cream, na.rm = TRUE),
+    Champagne_count = sum(Champagne, na.rm = TRUE)
+  ) %>%
+  arrange(desc(family_size))
+
+# Step 4: Reshape and remove NA or 0 counts
+family_long <- family_summary %>%
+  pivot_longer(cols = c(Gold_count, Silver_count, White_count, Cream_count, Champagne_count),
+               names_to = "Colour",
+               values_to = "Count") %>%
+  mutate(Colour = gsub("_count", "", Colour)) %>%
+  filter(!is.na(Count) & Count > 0)  # Remove NA and 0s
+
+# Step 5: Define custom colours
+my_colours <- c(
+  Gold = "#FFD700",
+  Silver = "#A9A9A9",
+  White = "#D3D3D3",
+  Cream = "#FFFDD0",
+  Champagne = "#F7E7CE"
+)
+
+# Step 6: Plot
+ggplot(family_long, aes(x = factor(family_number), y = Count, fill = Colour)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "Family Number",
+    y = "Pearl Count",
+    title = "Distribution of Pearl Colours Across Families"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_fill_manual(values = my_colours)
+
+```
+
+
+
+
+#NEW DONOR 
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Step 1: Create family_key and family_number
+pedigree_donor <- donor_data2 %>%
+  mutate(
+    family_key = paste(`Candidate father ID`, `Candidate mother ID`, sep = "_"),
+    family_number = as.integer(factor(family_key))
+  )
+
+# Step 2: Create binary colour columns
+pedigree_donor <- pedigree_donor %>%
+  mutate(
+    Gold       = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver     = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White      = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream      = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champagne  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Step 3: Summarise by family_number
+family_summary <- pedigree_donor %>%
+  group_by(family_number) %>%
+  summarise(
+    family_size     = n(),
+    Gold_count      = sum(Gold, na.rm = TRUE),
+    Silver_count    = sum(Silver, na.rm = TRUE),
+    White_count     = sum(White, na.rm = TRUE),
+    Cream_count     = sum(Cream, na.rm = TRUE),
+    Champagne_count = sum(Champagne, na.rm = TRUE)
+  ) %>%
+  arrange(desc(family_size))
+
+# Step 4: Reshape and remove NA or 0 counts
+family_long <- family_summary %>%
+  pivot_longer(cols = c(Gold_count, Silver_count, White_count, Cream_count, Champagne_count),
+               names_to = "Colour",
+               values_to = "Count") %>%
+  mutate(Colour = gsub("_count", "", Colour)) %>%
+  filter(!is.na(Count) & Count > 0)  # Remove NA and 0s
+
+# Step 5: Define custom colours
+my_colours <- c(
+  Gold = "#FFD700",
+  Silver = "#A9A9A9",
+  White = "#D3D3D3",
+  Cream = "#FFFDD0",
+  Champagne = "#F7E7CE"
+)
+
+# Step 6: Plot
+ggplot(family_long, aes(x = factor(family_number), y = Count, fill = Colour)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "Family Number",
+    y = "Pearl Count",
+    title = "Distribution of Pearl Colours Across Families"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_fill_manual(values = my_colours)
+```
+
+
+
+# Pearson correlation
+
+#donor binary model
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+# 4. shell metrics and factors
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Round),
+    !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+
+#exponential curve donor binary model
+```{r}
+# Load required library
+library(ggplot2)
+
+# --- Step 1: Rename EBV column and ensure donor_id is a factor ---
+BLUP <- BLUP %>%
+  rename(EBV = solution) %>%
+  mutate(donor_id = as.factor(donor_id))
+
+
+# --- Step 2: Calculate observed proportion of Gold pearls per donor ---
+obs_gold <- donor_dat_clean %>%
+  group_by(donor_id) %>%
+  summarise(
+    prop_gold = mean(Gold, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# --- Step 3: Merge EBVs with observed gold proportion ---
+plot_df <- BLUP %>%
+  inner_join(obs_gold, by = "donor_id") %>%
+  filter(!is.na(EBV), !is.na(prop_gold))
+
+# --- Step 4: Exponential model fit ---
+plot_df <- plot_df %>%
+  mutate(prop_gold_adj = pmax(prop_gold, 1e-6))  # avoid log(0)
+
+# Starting values from log-linear regression
+start_vals <- coef(lm(log(prop_gold_adj) ~ EBV, data = plot_df))
+start_a <- exp(start_vals[1])
+start_b <- start_vals[2]
+
+# Fit exponential model: y = a * exp(b * x)
+exp_model <- nls(prop_gold_adj ~ a * exp(b * EBV),
+                 data = plot_df,
+                 start = list(a = start_a, b = start_b),
+                 control = list(maxiter = 200, warnOnly = TRUE))
+
+# --- Step 5: Generate fitted curve ---
+curve_df <- data.frame(EBV = seq(min(plot_df$EBV), max(plot_df$EBV), length.out = 200))
+curve_df$pred <- predict(exp_model, newdata = curve_df)
+
+# --- Step 6: Plot without point size ---
+ggplot(plot_df, aes(x = EBV, y = prop_gold)) +
+  geom_point(color = "darkgoldenrod", alpha = 0.8) +
+  geom_line(data = curve_df, aes(x = EBV, y = pred), color = "black", linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1), expand = expansion(mult = c(0.02, 0.02))) +
+  labs(
+    x = "Estimated Breeding Value (EBV) for Gold",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Donor EBV vs Observed Gold Proportion",
+    subtitle = "Fitted with exponential model: y = a · exp(b · EBV)"
+  ) +
+  theme_minimal(base_size = 13)
+
+# Optional: print model coefficients
+cat("Fitted exponential model:\n")
+print(coef(exp_model))
+
+cor(plot_df$EBV, plot_df$prop_gold, method = "pearson", use = "complete.obs")
+
+cor.test(plot_df$EBV, plot_df$prop_gold, method = "pearson")
+
+
+
+```
+
+#linear binary model
+```{r}
+# Calculate observed gold proportion
+obs_gold <- donor_dat_clean %>%
+  group_by(donor_id) %>%
+  summarise(
+    n = n(),
+    prop_gold = mean(Gold, na.rm = TRUE)
+  )
+
+# Prepare BLUP table
+BLUP$donor_id <- as.factor(BLUP$donor_id)
+merged <- left_join(obs_gold, BLUP, by = "donor_id")
+
+lm_ebv_gold <- lm(prop_gold ~ solution, data = merged)
+summary(lm_ebv_gold)
+
+library(ggplot2)
+
+ggplot(merged, aes(x = solution, y = prop_gold)) +
+  geom_point(color = "black") +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(
+    x = "Estimated Breeding Value (EBV)",
+    y = "Observed Proportion of Gold Pearls",
+    title = "Linear Relationship between EBV and Observed Gold Proportion"
+  ) +
+  theme_minimal()
+
+# Calculate Pearson correlation
+cor_test <- cor.test(merged$solution, merged$prop_gold, method = "pearson")
+
+# Print results
+print(cor_test)
+
+
+
+```
+
+
+
+
+#donor quantitative model pearson correlation
+
+```{r}
+
+#WORKS
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant %>%
+  filter(!is.na(offspring_id_donor) & !is.na(dam_donor) & !is.na(sire_donor) & !is.na(pred) & !is.na(Matched_Donor_Data_Nacre_lip_colour_Round) & !is.na(Matched_Donor_Data_Nacre_lip_colour_Flat))
+
+# Convert columns to appropriate types
+donor_dat$offspring_id_donor <- as.factor(donor_dat$offspring_id_donor)
+donor_dat$dam_donor <- as.factor(donor_dat$dam_donor)
+donor_dat$sire_donor <- as.factor(donor_dat$sire_donor)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Round)
+donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat <- as.factor(donor_dat$Matched_Donor_Data_Nacre_lip_colour_Flat)
+
+# Prepare pedigree
+ped <- donor_dat %>%
+  distinct(offspring_id_donor, .keep_all = TRUE) %>%
+  select(ID = offspring_id_donor, SIRE = sire_donor, DAM = dam_donor)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Filter complete data for modelling
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(pred, offspring_id_donor))
+
+
+# Calculate average "goldness" (pred) for each donor
+mean_goldness <- donor_dat %>%
+  filter(!is.na(pred), !is.na(offspring_id_donor)) %>%
+  group_by(offspring_id_donor) %>%
+  summarise(mean_gold = mean(pred, na.rm = TRUE),
+            n_pearls = n()) %>%
+  ungroup()
+
+# OPTIONAL: View summary
+print(head(mean_goldness))
+
+# Fit ASReml Gaussian animal model
+mod_gold <- asreml(
+  fixed = pred ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(offspring_id_donor, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components manually
+vc <- summary(mod_gold)$varcomp
+print(vc)  # Print all variance components
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>% filter(donor %in% unique(donor_dat_clean$offspring_id_donor))
+blup_gold$EBV <- blup_gold$solution
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+vpredict(mod_gold,h2~V1/(V1+V2))
+
+
+# Merge mean_gold with BLUPs (EBVs)
+merged_df <- left_join(mean_goldness, blup_gold, by = c("offspring_id_donor" = "donor"))
+
+
+# View merged table
+print(merged_df)
+
+# Merge EBV and mean_goldness
+merged_df <- blup_gold %>%
+  select(donor, EBV) %>%
+  inner_join(mean_goldness, by = c("donor" = "offspring_id_donor"))
+
+# Check merged result
+head(merged_df)
+
+# Load ggplot2 
+library(ggplot2)
+
+# Scatter plot + linear regression line
+ggplot(merged_df, aes(x = EBV, y = mean_gold)) +
+  geom_point(aes(color = "Observed Data")) +
+  geom_smooth(method = "lm", se = FALSE, aes(color = "Linear Fit")) +
+  scale_color_manual(values = c("Observed Data" = "black", "Linear Fit" = "blue")) +
+  labs(
+    x = "Estimated Breeding Value (EBV)",
+    y = "Mean Predicted Colour (Goldness)",
+    title = "Donor EBV vs Mean Goldness",
+    color = "Legend"
+  ) +
+  theme_minimal()
+
+# Pearson correlation
+cor_test_result <- cor.test(merged_df$EBV, merged_df$mean_gold, method = "pearson")
+print(cor_test_result)
+
+```
+
+
+
+
+# 7. Confusion Matrix (~500 pearls)
+
+
+
+#try new good donorquant4 !!!
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# Load and clean data
+donor_dat <- donorquant4 %>%
+  filter(!is.na(donor_offspring_id) & 
+         !is.na(donor_dam) & 
+         !is.na(donor_sire) & 
+         !is.na(pred))
+
+# Convert columns to appropriate types
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_offspring_id = as.factor(donor_offspring_id),
+    donor_dam = as.factor(donor_dam),
+    donor_sire = as.factor(donor_sire),
+    Matched_Donor_Data_Nacre_lip_colour_Round = as.factor(Matched_Donor_Data_Nacre_lip_colour_Round),
+    Matched_Donor_Data_Nacre_lip_colour_Flat  = as.factor(Matched_Donor_Data_Nacre_lip_colour_Flat)
+  )
+
+# Drop unused factor levels
+donor_dat <- droplevels(donor_dat)
+
+# Filter complete cases including new fixed effects
+donor_dat_clean <- donor_dat %>%
+  filter(complete.cases(
+    pred,
+    donor_offspring_id,
+    Matched_Donor_Data_Nacre_lip_colour_Round,
+    Matched_Donor_Data_Nacre_lip_colour_Flat
+  ))
+
+# Add units column (required by ASReml)
+donor_dat_clean$units <- 1:nrow(donor_dat_clean)
+
+# Prepare pedigree
+ped <- donor_dat_clean %>%
+  distinct(donor_offspring_id, .keep_all = TRUE) %>%
+  select(ID = donor_offspring_id, SIRE = donor_sire, DAM = donor_dam)
+ped <- data.frame(lapply(ped, as.factor))
+ainv <- ainverse(ped)
+
+# Fit ASReml Gaussian animal model with the two fixed effects
+mod_gold <- asreml(
+  fixed = pred ~ Matched_Donor_Data_Nacre_lip_colour_Round + Matched_Donor_Data_Nacre_lip_colour_Flat,
+  random = ~ vm(donor_offspring_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean
+)
+mod_gold <- update(mod_gold)
+
+# Extract variance components
+vc <- summary(mod_gold)$varcomp
+print(vc)
+Va <- vc["vm(offspring_id_donor, ainv)", "component"]
+Ve <- vc["units!R", "component"]
+
+# Calculate heritability
+vpredict(mod_gold, h2 ~ V1 / (V1 + V2))
+
+# Extract BLUPs
+blup_gold <- as.data.frame(summary(mod_gold, coef = TRUE)$coef.random)
+blup_gold$donor <- gsub("^.*\\)_", "", rownames(blup_gold))
+blup_gold <- blup_gold %>%
+  filter(donor %in% unique(donor_dat_clean$donor_offspring_id)) %>%
+  rename(EBV = solution)
+
+# View top BLUPs
+head(blup_gold[order(-blup_gold$EBV), ], 10)
+
+```
+
+
+
