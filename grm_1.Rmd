@@ -1,0 +1,2765 @@
+---
+title: "grm_1"
+output: html_document
+date: "2025-09-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# GASTON replace pedigree with GRM
+
+
+
+
+# Gold binary host - no fixed effects
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat 
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+# Gold binary host - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+#WORKS binary gold host
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat %>%
+  mutate(
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+
+
+
+
+
+# Silver binary host - no fixed effects 
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat 
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Silver ~ 1,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Silver)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+# Silver binary host - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat %>%
+  mutate(
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Silver),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Silver ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Silver)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+# White binary host - no fixed effects 
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat 
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = White ~ 1,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$White)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+# White binary host - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat %>%
+  mutate(
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(White),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = White ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$White)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+
+# Cream binary host - no fixed effects 
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat 
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Cream ~ 1,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Cream)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+# Cream binary host - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat %>%
+  mutate(
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Cream),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Cream ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Cream)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+
+
+
+# Champagne binary host - no fixed effects 
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat 
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Champ ~ 1,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Champ)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+# Champagne binary host - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+host_dat <- read_csv("host_id2.csv", show_col_types = FALSE)
+
+# Binary traits
+host_dat <- host_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+host_dat <- host_dat %>%
+  rename(host_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(host_id = as.factor(host_id))
+
+# Convert variables
+host_dat <- host_dat %>%
+  mutate(
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+host_dat_clean <- host_dat %>%
+  filter(
+    !is.na(Champ),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(host_id),
+    as.character(host_id) %in% ids
+  ) %>%
+  mutate(host_id = droplevels(host_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(host_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Champ ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(host_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(host_id, invgrm)", "component"]
+SE_Va <- vc["vm(host_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(host_dat_clean$Champ)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Gold binary donor - no fixed effects
+
+
+
+# Gold binary donor - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+```{r}
+# DONOR GOLD
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+# 1. Load data
+#donor_dat <- read_csv("donor_data.csv")
+donor_dat <- donor_data2
+
+
+# 3. Rename and format ID columns as factors
+donor_dat <- donor_dat %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam     = as.factor(Dam),
+    Sire    = as.factor(Sire)
+  )
+
+# 3. Create binary traits from Pearl_Grading_Data_Colour (start with string match)
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+     )
+
+# 4. shell metrics and factors
+donor_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.factor(donor_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+
+
+
+# 5. Remove rows with missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id)
+  )
+
+
+# 5. Create a pedigree with unique donor IDs only
+pedind <- donor_dat_clean %>%
+  distinct(donor_id, .keep_all = TRUE) %>%
+  select(donor_id, Sire, Dam)
+
+colnames(pedind) <- c("ID", "SIRE", "DAM")
+pedind <- data.frame(lapply(pedind, as.factor))  # Ensure factors
+
+# 6. Generate the inverse relationship matrix (A-inverse)
+ainv <- ainverse(pedind)
+
+# 7. Fit the animal model
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(donor_id, ainv),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# 8. Update and extract variance components
+mod.ind <- update.asreml(mod.ind)
+summary(mod.ind)$varcomp
+
+# 8. Update model (again) to ensure convergence
+mod.ind <- update.asreml(mod.ind)
+
+# 9. Extract variance components manually
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Calculating heritability
+#vpredict(mod.ind,h2~V1/(V1+V2))
+
+# 10. Calculate heritability (latent scale)
+Va    <- vc["vm(donor_id, ainv)", "component"]
+SE_Va <- vc["vm(donor_id, ainv)", "std.error"]
+Ve    <- (pi^2)/3
+h2_latent <- Va / (Va + Ve)
+
+# Standard error using delta method
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# 11. Convert to observed scale using trait prevalence
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# 12. Print heritability estimates and SEs
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Create a summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+
+# Print the table
+print(herit_summary)
+
+
+# 13. Extract BLUPs (genetic merit)
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, ainv\\)_", "", rownames(BLUP))
+
+# Filter only donor IDs used in model
+#actual_ids <- unique(donor_dat_clean$donor_id)
+#BLUP <- BLUP %>% filter(donor_id %in% actual_ids)
+
+# Optional: calculate probabilities
+#BLUP$prob_gold <- exp(BLUP$solution) / (1 + exp(BLUP$solution))
+
+head(BLUP)
+
+
+
+```
+
+
+
+# Gold binary host - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+#WORKS binary gold host
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Binary traits
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+donor_dat <- donor_dat %>%
+  rename(donor_id = Shell_Metrics_GenotypeID_DART) %>%
+  mutate(donor_id = as.factor(donor_id))
+
+# Convert variables
+donor_dat <- donor_dat %>%
+  mutate(
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id),
+    as.character(donor_id) %in% ids
+  ) %>%
+  mutate(donor_id = droplevels(donor_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(donor_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(donor_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(donor_id, invgrm)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(donor_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+Matched_Donor_Data_Saibo_No
+```{r}
+# Load libraries
+library(gaston)
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+
+# Prepare attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+## === STEP 2: Load phenotype data ===
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Binary traits
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Rename ID column
+donor_dat <- donor_dat %>%
+  rename(donor_id = Matched_Donor_Data_Saibo_No) %>%
+  mutate(donor_id = as.factor(donor_id))
+
+# Convert variables
+donor_dat <- donor_dat %>%
+  mutate(
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id),
+    as.character(donor_id) %in% ids
+  ) %>%
+  mutate(donor_id = droplevels(donor_id))
+
+# Reorder GRM to match phenotype data
+ids_used <- as.character(donor_dat_clean$host_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+asreml.options(workspace = "1024mb")  # Set workspace to 1024 megabytes
+
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(donor_id, invgrm),
+  residual = ~ idv(units),
+  data = host_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+
+# Update for convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(donor_id, invgrm)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+p <- mean(donor_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+```{r}
+# Load libraries
+library(gaston)   # GRM
+library(MASS)     # ginv
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+
+## === STEP 1: Load genotype and compute GRM ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome
+
+# Create GRM and its inverse
+grm <- GRM(geno)
+invgrm <- ginv(grm)
+
+# Set attributes for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+
+## === STEP 2: Load phenotype data ===
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Create binary colour traits
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  ) %>%
+  rename(donor_id = Matched_Donor_Data_Saibo_No) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id),
+    as.character(donor_id) %in% ids
+  ) %>%
+  droplevels()
+
+# Reorder GRM to match donor_id order
+ids_used <- as.character(donor_dat_clean$donor_id)
+invgrm <- invgrm[ids_used, ids_used]
+dimnames(invgrm) <- list(ids_used, ids_used)
+attr(invgrm, "rowNames") <- ids_used
+attr(invgrm, "colNames") <- ids_used
+attr(invgrm, "INVERSE")  <- TRUE
+
+# Set workspace
+asreml.options(workspace = "1024mb")
+
+## === STEP 3: Fit ASReml model ===
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(donor_id, invgrm),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# Convergence
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(donor_id, invgrm)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic residual variance
+
+# Latent scale
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale (via Dempster & Lerner transformation)
+p <- mean(donor_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Output
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+## === STEP 5: Extract BLUPs ===
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+
+
+```{r}
+# 1. Read PLINK BED matrix (already done earlier)
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# 2. Filter for quality SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # assign dummy chromosome
+
+# 3. Create GRM
+grm <- GRM(geno)
+
+# 4. Invert GRM
+invgrm <- ginv(grm)
+
+## === STEP 2: Load phenotype data ===
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Create binary colour traits
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  ) %>%
+  rename(donor_id = Matched_Donor_Data_Saibo_No) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id),
+    as.character(donor_id) %in% ids
+  ) %>%
+  droplevels()
+
+
+# 5. Match GRM with phenotype data
+ids <- rownames(grm)
+donor_dat_clean <- donor_dat_clean %>%
+  filter(as.character(donor_id) %in% ids) %>%
+  mutate(donor_id = as.character(donor_id))
+
+# 6. Subset GRM and order correctly
+ids_used <- donor_dat_clean$donor_id
+invgrm_used <- invgrm[ids_used, ids_used]
+
+# 7. Set ASReml matrix attributes
+dimnames(invgrm_used) <- list(ids_used, ids_used)
+attr(invgrm_used, "rowNames") <- ids_used
+attr(invgrm_used, "colNames") <- ids_used
+attr(invgrm_used, "INVERSE")  <- TRUE
+
+
+# Set workspace
+asreml.options(workspace = "1024mb")
+
+mod.ind <- asreml(
+  fixed = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random = ~ vm(donor_id, invgrm_used),
+  residual = ~ idv(units),
+  data = donor_dat_clean,
+  family = asr_binomial(link = "logit")
+)
+
+# Convergence
+mod.ind <- update.asreml(mod.ind)
+mod.ind <- update.asreml(mod.ind)
+
+## === STEP 4: Heritability estimates ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(donor_id, invgrm)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic residual variance
+
+# Latent scale
+h2_latent <- Va / (Va + Ve)
+dVa <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale (via Dempster & Lerner transformation)
+p <- mean(donor_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Output
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+## === STEP 5: Extract BLUPs ===
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+
+```
+
+
+
+
+```{r}
+# Load libraries
+library(gaston)   # For GRM
+library(MASS)     # For ginv
+library(readr)
+library(dplyr)
+library(asreml)
+library(nadiv)
+
+# Step 1: Load and filter genotype data (.bed/.bim/.fam)
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # dummy chromosome assignment
+
+# Step 2: Compute GRM and inverse
+grm <- GRM(geno)
+invgrm <- ginv(grm)
+ids <- rownames(grm)
+
+# Step 3: Load phenotype data
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Step 4: Prepare phenotype data
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    donor_id = as.character(`Offspring ID`)
+  ) %>%
+  filter(!is.na(Gold), !is.na(donor_id), donor_id %in% ids)
+
+# Step 5: Match GRM to phenotype data
+
+
+
+ids_used <- donor_dat$donor_id
+invgrm_used <- invgrm[ids_used, ids_used]
+dimnames(invgrm_used) <- list(ids_used, ids_used)
+attr(invgrm_used, "rowNames") <- ids_used
+attr(invgrm_used, "colNames") <- ids_used
+attr(invgrm_used, "INVERSE")  <- TRUE
+
+# Step 6: Set workspace
+asreml.options(workspace = "1024mb")
+
+# Step 7: Fit model
+mod <- asreml(
+  fixed = Gold ~ 1,
+  random = ~ vm(donor_id, invgrm_used),
+  residual = ~ idv(units),
+  data = donor_dat,
+  family = asr_binomial(link = "logit")
+)
+
+mod <- update.asreml(mod)
+
+# Step 8: Extract heritability
+vc <- summary(mod)$varcomp
+Va <- vc["vm(donor_id, invgrm_used)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm_used)", "std.error"]
+Ve <- (pi^2) / 3  # Logistic variance
+
+# Latent scale
+h2_latent <- Va / (Va + Ve)
+SE_h2_latent <- SE_Va * (Ve / (Va + Ve)^2)
+
+# Observed scale
+p <- mean(donor_dat$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_table <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_table)
+
+# Step 9: Extract BLUPs
+BLUP <- as.data.frame(summary(mod, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+```{r}
+# === Load libraries ===
+library(gaston)   # For reading PLINK files and building GRM
+library(MASS)     # For ginv()
+library(readr)    # For reading CSV
+library(dplyr)    # For data wrangling
+library(asreml)   # For fitting animal model
+library(nadiv)    # Optional, not needed for GRM-based model
+
+# === STEP 1: Load and process genotype data ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# Filter for high-quality SNPs
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # Dummy chromosome to satisfy gaston
+
+# Create GRM
+grm <- GRM(geno)
+
+# Invert GRM and set dimnames for ASReml compatibility
+invgrm <- ginv(grm)
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+
+
+
+# Step 2: Load and clean phenotype data
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE) %>%
+  mutate(
+    Gold = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    donor_id = as.character(`Offspring ID`)
+  ) %>%
+  filter(
+    !is.na(Gold),
+    !is.na(donor_id),
+    donor_id %in% rownames(grm)  # only keep individuals in GRM
+  ) %>%
+  droplevels()  # drop unused levels
+
+
+# Match order of donor_id to GRM
+ids_used <- donor_dat$donor_id
+invgrm_used <- invgrm[ids_used, ids_used]
+dimnames(invgrm_used) <- list(ids_used, ids_used)
+attr(invgrm_used, "rowNames") <- ids_used
+attr(invgrm_used, "colNames") <- ids_used
+attr(invgrm_used, "INVERSE")  <- TRUE
+
+# Optional: reorder donor_id factor levels
+donor_dat$donor_id <- factor(donor_dat$donor_id, levels = ids_used)
+
+# === STEP 3: Fit ASReml model ===
+asreml.options(workspace = "1024mb")
+
+mod <- asreml(
+  fixed   = Gold ~ 1,
+  random  = ~ vm(donor_id, invgrm_used),
+  residual = ~ idv(units),
+  data    = donor_dat,
+  family  = asr_binomial(link = "logit")
+)
+
+# Convergence update
+mod <- update.asreml(mod)
+mod <- update.asreml(mod)
+
+# === STEP 4: Estimate heritability ===
+vc <- summary(mod)$varcomp
+Va <- vc["vm(donor_id, invgrm_used)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm_used)", "std.error"]
+Ve <- (pi^2) / 3  # Residual variance for logit
+
+# Latent scale heritability
+h2_latent <- Va / (Va + Ve)
+SE_h2_latent <- SE_Va * (Ve / (Va + Ve)^2)
+
+# Observed scale transformation
+p <- mean(donor_dat$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):", round(h2_latent, 4), "\n")
+cat("SE (latent scale):", round(SE_h2_latent, 4), "\n")
+cat("Heritability (observed scale):", round(h2_obs, 4), "\n")
+cat("SE (observed scale):", round(SE_obs, 4), "\n")
+
+# Summary table
+herit_table <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_table)
+
+# === STEP 5: Extract BLUPs ===
+BLUP <- as.data.frame(summary(mod, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+
+
+
+```{r}
+# DONOR GOLD (with GRM)
+
+# Load required libraries
+library(readr)
+library(asreml)
+library(nadiv)
+library(dplyr)
+library(gaston)  # for GRM
+
+# Load and prepare data
+donor_dat <- donor_data2 %>%
+  rename(
+    donor_id = Matched_Donor_Data_Saibo_No,
+    Dam = `Candidate mother ID`,
+    Sire = `Candidate father ID`
+  ) %>%
+  mutate(
+    donor_id = as.factor(donor_id),
+    Dam      = as.factor(Dam),
+    Sire     = as.factor(Sire)
+  ) %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1, 0)
+  )
+
+# Convert fixed effect to factor
+donor_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture <- as.factor(donor_dat$Pearl_Harvest_Data_Days_of_Pearl_Culture)
+
+# Filter missing values
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id)
+  )
+
+### LOAD GRM FROM GENOTYPES ###
+# Assuming you already created this:
+# Pmax_18-03_DART_Genotypes_May2025.bed/.bim/.fam files are in your directory
+
+geno <- read.bed.matrix("Pmax_18-03_DART_Genotypes_May2025")
+geno <- geno[, geno@snps$callrate >= 0.75 & geno@snps$maf >= 0.05]
+geno@snps$chr <- 1  # required by GRM
+
+grm <- GRM(geno)
+invgrm <- MASS::ginv(grm)
+
+# Format inverse GRM for ASReml
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+# Subset GRM to only include donor IDs in model
+ids_used <- intersect(ids, as.character(donor_dat_clean$donor_id))
+invgrm_used <- invgrm[ids_used, ids_used]
+
+donor_dat_clean <- donor_dat_clean %>%
+  filter(donor_id %in% ids_used) %>%
+  mutate(donor_id = droplevels(donor_id))
+
+### Fit ASReml model using GRM ###
+mod.ind <- asreml(
+  fixed    = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random   = ~ vm(donor_id, invgrm_used),
+  residual = ~ idv(units),
+  data     = donor_dat_clean,
+  family   = asr_binomial(link = "logit")
+)
+
+mod.ind <- update.asreml(mod.ind)
+
+# Extract variance components
+vc <- summary(mod.ind)$varcomp
+print(vc)
+
+# Heritability on latent scale
+Va    <- vc["vm(donor_id, invgrm_used)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm_used)", "std.error"]
+Ve    <- (pi^2) / 3
+h2_latent <- Va / (Va + Ve)
+
+dVa          <- Ve / (Va + Ve)^2
+SE_h2_latent <- SE_Va * dVa
+
+# Observed scale conversion
+p <- mean(donor_dat_clean$Gold, na.rm = TRUE)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+
+h2_obs    <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_h2_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Print results
+cat("Heritability (latent scale):       ", h2_latent, "\n")
+cat("Standard Error (latent scale):     ", SE_h2_latent, "\n")
+cat("Heritability (observed scale):     ", h2_obs, "\n")
+cat("Standard Error (observed scale):   ", SE_h2_obs, "\n")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_h2_obs)
+)
+print(herit_summary)
+
+# Extract BLUPs
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+BLUP$donor_id <- sub(".*donor_id, invgrm_used\\)_", "", rownames(BLUP))
+head(BLUP)
+
+```
+
+
+
+
+```{r}
+# === Libraries ===
+library(gaston)
+library(MASS)
+library(readr)
+library(dplyr)
+library(asreml)
+
+# === STEP 1: Genotype Data ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1
+grm <- GRM(geno)
+
+invgrm <- ginv(grm)
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+# === STEP 2: Donor Phenotype Data ===
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Use Saibo ID as donor ID
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+
+    donor_id = as.character(Matched_Donor_Data_Saibo_No),
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id),
+    donor_id %in% ids
+  ) %>%
+  droplevels()
+
+# Ensure both Gold=1 and Gold=0 are present
+if (length(unique(donor_dat_clean$Gold)) < 2) {
+  stop("Gold has only one class after GRM alignment.")
+}
+
+# === STEP 3: Align GRM ===
+ids_used <- as.character(donor_dat_clean$donor_id)
+invgrm_used <- invgrm[ids_used, ids_used]
+dimnames(invgrm_used) <- list(ids_used, ids_used)
+attr(invgrm_used, "rowNames") <- ids_used
+attr(invgrm_used, "colNames") <- ids_used
+attr(invgrm_used, "INVERSE")  <- TRUE
+
+donor_dat_clean$donor_id <- factor(donor_dat_clean$donor_id, levels = ids_used)
+
+# === STEP 4: Fit ASReml Model ===
+asreml.options(workspace = "1024mb")
+
+mod.ind <- asreml(
+  fixed    = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random   = ~ vm(donor_id, invgrm_used),
+  residual = ~ idv(units),
+  data     = donor_dat_clean,
+  family   = asr_binomial(link = "logit"),
+  na.method.X = "omit",
+  na.method.Y = "omit"
+)
+
+mod.ind <- update.asreml(mod.ind)
+
+# === STEP 5: Heritability ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(donor_id, invgrm_used)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm_used)", "std.error"]
+Ve <- (pi^2) / 3
+
+h2_latent <- Va / (Va + Ve)
+SE_h2_latent <- SE_Va * (Ve / (Va + Ve)^2)
+
+p <- mean(donor_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent):  ", round(h2_latent, 4), " SE=", round(SE_h2_latent, 4), "\n", sep = "")
+cat("Heritability (observed):", round(h2_obs,    4), " SE=", round(SE_obs,       4), "\n", sep = "")
+
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# === STEP 6: BLUPs ===
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+```{r}
+# Load required libraries
+library(gaston)
+library(MASS)   # for ginv()
+library(asreml)
+
+# === 1. Load PLINK files ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+
+# === 2. Check dimensions ===
+print(dim(geno))  # rows = individuals, cols = SNPs
+
+# === 3. SNP Quality Control ===
+
+# a. Filter by call rate
+geno <- geno[, geno@snps$callrate >= 0.75]
+
+# b. Filter by minor allele frequency (MAF)
+geno <- geno[, geno@snps$maf >= 0.05]
+
+# c. Assign dummy chromosome (required by gaston)
+geno@snps$chr <- 1
+
+# === 4. Calculate GRM ===
+grm <- GRM(geno)  # genomic relationship matrix
+
+# === 5. Invert GRM ===
+invgrm <- ginv(grm)
+
+# === 6. Prepare inverse GRM for ASReml ===
+ids <- rownames(grm)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "INVERSE") <- TRUE
+
+
+
+
+```
+
+```{r}
+# Load donor phenotypic data
+donor_dat <- read.csv("donor_data2.csv")  # or use the object if already loaded
+
+# Check if donor IDs match GRM
+donor_ids <- as.character(donor_dat$Matched_Donor_Data_Saibo_No)
+grm_ids   <- rownames(grm)
+
+# Find unmatched IDs
+unmatched <- setdiff(donor_ids, grm_ids)
+length(unmatched)
+print(unmatched[1:10])  # show examples
+
+# OPTIONAL: filter data to only those with genotypes
+donor_dat <- donor_dat[donor_dat$Matched_Donor_Data_Saibo_No %in% grm_ids, ]
+
+```
+
+
+
+
+```{r}
+# === Libraries ===
+library(gaston)
+library(MASS)
+library(readr)
+library(dplyr)
+library(asreml)
+
+# === STEP 1: Genotype Data ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1
+grm <- GRM(geno)
+
+invgrm <- ginv(grm)
+ids <- rownames(grm)
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+# === STEP 2: Donor Phenotype Data ===
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Add prefix to Saibo ID and use as donor_id
+donor_dat <- donor_dat %>%
+  mutate(
+    Gold   = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Silver = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    White  = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Cream  = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Champ  = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+
+    donor_id = paste0("18-03_Saibo_", Matched_Donor_Data_Saibo_No),
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id),
+    donor_id %in% ids
+  ) %>%
+  droplevels()
+
+# Check Gold distribution after filtering
+cat("Gold count after GRM alignment:\n")
+print(table(donor_dat_clean$Gold))
+
+if (length(unique(donor_dat_clean$Gold)) < 2) {
+  stop("Gold has only one class after GRM alignment. Check ID match or sample size.")
+}
+
+# === STEP 3: Align GRM ===
+ids_used <- as.character(donor_dat_clean$donor_id)
+invgrm_used <- invgrm[ids_used, ids_used]
+dimnames(invgrm_used) <- list(ids_used, ids_used)
+attr(invgrm_used, "rowNames") <- ids_used
+attr(invgrm_used, "colNames") <- ids_used
+attr(invgrm_used, "INVERSE")  <- TRUE
+
+donor_dat_clean$donor_id <- factor(donor_dat_clean$donor_id)
+
+
+# === STEP 4: Fit ASReml Model ===
+asreml.options(workspace = "1024mb")
+
+mod.ind <- asreml(
+  fixed    = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random   = ~ vm(donor_id, invgrm_used),
+  residual = ~ idv(units),
+  data     = donor_dat_clean,
+  family   = asr_binomial(link = "logit")
+)
+
+
+mod.ind <- update.asreml(mod.ind)
+mod.ind <- update.asreml(mod.ind)
+
+# === STEP 5: Heritability ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(donor_id, invgrm_used)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm_used)", "std.error"]
+Ve <- (pi^2) / 3  # logistic residual variance
+
+h2_latent <- Va / (Va + Ve)
+SE_h2_latent <- SE_Va * (Ve / (Va + Ve)^2)
+
+p <- mean(donor_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+cat("Heritability (latent):  ", round(h2_latent, 4), " SE=", round(SE_h2_latent, 4), "\n", sep = "")
+cat("Heritability (observed):", round(h2_obs,    4), " SE=", round(SE_obs,       4), "\n", sep = "")
+
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# === STEP 6: BLUPs (donor EBVs) ===
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+
+###WORKS 
+```{r}
+# === Libraries ===
+library(gaston)
+library(MASS)
+library(readr)
+library(dplyr)
+library(asreml)
+
+# === STEP 1: Genotype Data ===
+geno <- read.bed.matrix(basename = "Pmax_18-03_DART_Genotypes_May2025")
+geno <- geno[, geno@snps$callrate >= 0.75]
+geno <- geno[, geno@snps$maf >= 0.05]
+geno@snps$chr <- 1
+grm <- GRM(geno)
+
+# Invert GRM
+invgrm <- ginv(grm)
+ids <- rownames(grm)
+
+# Prepare attributes for ASReml
+dimnames(invgrm) <- list(ids, ids)
+attr(invgrm, "rowNames") <- ids
+attr(invgrm, "colNames") <- ids
+attr(invgrm, "INVERSE")  <- TRUE
+
+# === STEP 2: Donor Phenotype Data ===
+donor_dat <- read_csv("donor_data2.csv", show_col_types = FALSE)
+
+# Add prefix to Saibo ID and generate donor_id
+donor_dat <- donor_dat %>%
+  mutate(
+    donor_id = paste0("18-03_Saibo_", Matched_Donor_Data_Saibo_No),
+    Gold     = ifelse(grepl("^Gold", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Silver   = ifelse(grepl("^Silver", Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    White    = ifelse(grepl("^White",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Cream    = ifelse(grepl("^Cream",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Champ    = ifelse(grepl("^Champ",  Pearl_Grading_Data_Colour, ignore.case = TRUE), 1L, 0L),
+    Pearl_Harvest_Data_Days_of_Pearl_Culture = as.factor(Pearl_Harvest_Data_Days_of_Pearl_Culture)
+  )
+
+# Clean and align with GRM (remove duplicates and NAs)
+donor_dat_clean <- donor_dat %>%
+  filter(
+    !is.na(Gold),
+    !is.na(Pearl_Harvest_Data_Days_of_Pearl_Culture),
+    !is.na(donor_id),
+    donor_id %in% ids
+  ) %>%
+  distinct(donor_id, .keep_all = TRUE) %>%  # remove duplicate donor_id rows
+  droplevels()
+
+# Check Gold distribution
+cat("Gold count after GRM alignment:\n")
+print(table(donor_dat_clean$Gold))
+
+# Safety check for binary class
+if (length(unique(donor_dat_clean$Gold)) < 2) {
+  stop("Gold has only one class after GRM alignment. Check ID match or sample size.")
+}
+
+# === STEP 3: Align GRM to donor_id used ===
+ids_used <- as.character(donor_dat_clean$donor_id)
+invgrm_used <- invgrm[ids_used, ids_used]
+dimnames(invgrm_used) <- list(ids_used, ids_used)
+attr(invgrm_used, "rowNames") <- ids_used
+attr(invgrm_used, "colNames") <- ids_used
+attr(invgrm_used, "INVERSE")  <- TRUE
+
+donor_dat_clean$donor_id <- factor(donor_dat_clean$donor_id, levels = ids_used)
+
+# === STEP 4: Fit ASReml Model ===
+asreml.options(workspace = "1024mb")
+
+mod.ind <- asreml(
+  fixed    = Gold ~ Pearl_Harvest_Data_Days_of_Pearl_Culture,
+  random   = ~ vm(donor_id, invgrm_used),
+  residual = ~ idv(units),
+  data     = donor_dat_clean,
+  family   = asr_binomial(link = "logit")
+)
+
+mod.ind <- update.asreml(mod.ind)
+mod.ind <- update.asreml(mod.ind)
+
+# === STEP 5: Heritability Calculations ===
+vc <- summary(mod.ind)$varcomp
+Va <- vc["vm(donor_id, invgrm_used)", "component"]
+SE_Va <- vc["vm(donor_id, invgrm_used)", "std.error"]
+Ve <- (pi^2) / 3  # residual variance for logit link
+
+# Latent scale
+h2_latent <- Va / (Va + Ve)
+SE_h2_latent <- SE_Va * (Ve / (Va + Ve)^2)
+
+# Observed scale (Dempster & Lerner, 1950 method)
+p <- mean(donor_dat_clean$Gold)
+z <- qnorm(p)
+phi_z <- dnorm(z)
+h2_obs <- (h2_latent * phi_z^2) / (p * (1 - p))
+SE_obs <- (SE_h2_latent * phi_z^2) / (p * (1 - p))
+
+# Output
+cat("Heritability (latent):  ", round(h2_latent, 4), " SE=", round(SE_h2_latent, 4), "\n", sep = "")
+cat("Heritability (observed):", round(h2_obs,    4), " SE=", round(SE_obs,       4), "\n", sep = "")
+
+# Summary table
+herit_summary <- data.frame(
+  Scale = c("Latent", "Observed"),
+  Heritability = c(h2_latent, h2_obs),
+  Std_Error = c(SE_h2_latent, SE_obs)
+)
+print(herit_summary)
+
+# === STEP 6: BLUPs (donor EBVs) ===
+BLUP <- as.data.frame(summary(mod.ind, coef = TRUE)$coef.random)
+head(BLUP)
+
+```
+
+# Silver binary donor - no fixed effects
+
+
+
+
+# Silver binary donor - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+
+
+
+
+# White binary donor - no fixed effects
+
+
+
+
+
+# White binary donor - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+
+
+
+
+
+# Cream binary donor - no fixed effects
+
+
+
+
+
+# Cream binary donor - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+
+
+
+
+# Champagne binary donor - no fixed effects
+
+
+
+
+
+# Champagne binary donor - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+
+
+
+#VPREDICT 
+
+# Gold quantitative host - no fixed effects
+
+
+
+
+
+# Gold quantitative host - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+
+
+
+
+
+
+
+# Gold quantitative donor - no fixed effects
+
+
+# Gold quantitative donor - fixed effects: Pearl_Harvest_Data_Days_of_Pearl_Culture
+
+
+
+
+
+
+
+
+
+# pearson correlation EBV vs observed proportion of Gold [donor binary model]
+
+
+# pearson correlation EBV vs observed proportion of Gold [donor quantitative model]
+
+
+
+
+
+# ROC Curves: Binary vs Quantitative Model (AUC)
+
+
